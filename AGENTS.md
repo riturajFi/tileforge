@@ -25,6 +25,7 @@ The final architecture takes Q, K, and V tensors through either a Triton kernel 
 - Run the implementation and inspect numerical results, errors, measurements, and exit statuses. Do not claim verification for commands that were not run.
 - Resolve failures before marking a milestone complete. If hardware, credentials, or access block verification, leave it unchecked and record the blocker. Do not advance past it.
 - After successful manual verification, update this file's checklist and progress record with what was completed, the commands run, their results, and the next milestone. Include that update in the milestone commit. A commit hash can be recorded afterward when useful; do not invent a hash.
+- Before creating any commit, run `git-personal`.
 - Commit and push all completed code changes and corresponding documentation, observations, and roadmap updates to `origin/main` before finishing the task. This is standing authorization to push; do not wait for a separate push request. Verify that the remote branch contains the completed commit and report any push blocker. Keep secrets, local environments, and temporary artifacts out of commits, and never force-push over remote work.
 - Stop after the requested milestone and report the next step. Proceed to the next milestone when the user requests it.
 - Keep this file as the authoritative progress checklist and keep any corresponding README status consistent. Do not optimize an incorrect kernel.
@@ -36,7 +37,7 @@ The final architecture takes Q, K, and V tensors through either a Triton kernel 
 - [x] **02 — Expose the memory bottleneck.** Measure the N × N attention matrix and runtime memory for increasing N. Record baseline measurements.
 - [x] **03 — Implement online softmax on CPU.** Process one query against K in small chunks; maintain the running maximum, sum, and numerator accumulator. Verify against full softmax attention.
 - [x] **04 — Build CPU tiled attention.** Handle multiple Q rows, K/V tiles, and head dimensions. Never allocate the full attention matrix. Deliver a correct tiled reference.
-- [ ] **05 — Learn Triton GPU execution.** Implement a small GPU softmax kernel. Practice program IDs, `tl.load`, `tl.store`, masks, and reductions. Deliver a working Triton kernel.
+- [x] **05 — Learn Triton GPU execution.** Implement a small GPU softmax kernel. Practice program IDs, `tl.load`, `tl.store`, masks, and reductions. Deliver a working Triton kernel.
 - [ ] **06 — Implement tiled QKᵀ in Triton.** Load a Q tile and K tile, perform `tl.dot`, and validate the resulting local scores. Deliver correct tile products.
 - [ ] **07 — Implement fused Triton attention.** Combine QKᵀ, online softmax, and weighted V accumulation in a single forward kernel. Deliver the first real FlashAttention engine.
 - [ ] **08 — Add correctness features.** Support causal masking, non-multiple tile sizes, multiple batches/heads, FP16, and BF16. Verify correctness on supported shapes.
@@ -86,7 +87,7 @@ Keep batch size, number of heads, head dimension, dtype, and causal mode identic
 
 ## Hardware and references
 
-The user's AMD integrated-GPU laptop can handle the CPU milestones. The Triton GPU kernels, NVIDIA CUDA implementation, and GPU benchmarks require access to a compatible NVIDIA GPU, locally or in the cloud. The current cloud environment has CPU PyTorch and no usable CUDA device or `nvcc`; prepare and verify the required GPU environment before completing milestone 05. A CUDA compiler is required at milestone 10.
+The user's AMD integrated-GPU laptop can handle the CPU milestones. The Triton GPU kernels, NVIDIA CUDA implementation, and GPU benchmarks require access to a compatible NVIDIA GPU, locally or in the cloud. Milestone 05 was verified on a RunPod NVIDIA A100 80 GB with CUDA-enabled PyTorch and Triton. The local locked environment remains CPU-only, and the verified RunPod image has no `nvcc`; a CUDA compiler is required at milestone 10.
 
 - [Triton — Fused Softmax](https://triton-lang.org/main/getting-started/tutorials/02-fused-softmax.html)
 - [Triton — Matrix Multiplication](https://triton-lang.org/main/getting-started/tutorials/03-matrix-multiplication.html)
@@ -142,6 +143,14 @@ The user's AMD integrated-GPU laptop can handle the CPU milestones. The Triton G
 - At N=8192, peak process RSS was 265.74 MiB tiled versus 1031.77 MiB naive; median CPU latency was 542.815 ms versus 606.434 ms in this run. Process memory includes runtime overhead, and these are not GPU results.
 - Ran separate tiled allocation profiling at N=257 with 16/32 tiles: 306 matrix multiplications, matching 17 × 9 tile pairs × 2 products; SDPA maximum error `3.87430191e-7`. The existing default naive profiling path also ran successfully at N=128. No unit tests were written, changed, or run.
 
-### Next: 05 — Learn Triton GPU execution (requires GPU access)
+### Completed: 05 — Learn Triton GPU execution
 
-Obtain an accessible NVIDIA GPU environment, install compatible CUDA-enabled PyTorch and Triton, and verify actual GPU execution. Then implement and run a small Triton softmax kernel using program IDs, loads, stores, masks, and reductions. Leave this milestone incomplete if GPU access is unavailable; do not substitute CPU results. Update this checklist and progress record only after successful GPU verification.
+- Added `tileforge/triton_softmax.py` with a forward-only CUDA FP32 row softmax. One Triton program handles one row using `tl.program_id`, masked `tl.load`/`tl.store`, maximum and sum reductions, and max-subtracted exponentials.
+- Verified actual GPU execution on a RunPod NVIDIA A100 80 GB (capability 8.0), driver 580.159.04, Python 3.12.3, PyTorch 2.8.0+cu128, and Triton 3.4.0. `nvcc` was unavailable, which is acceptable until milestone 10.
+- Ran `python3 scripts/check_environment.py --require-cuda` and four CLI configurations: 7×513, 1×1, 3×17, and 128×4096. Every command exited 0, produced finite outputs, and matched `torch.softmax` at `rtol=1e-5, atol=1e-6`. The largest absolute output error was `2.98023224e-8`; the largest row-sum error was `2.38418579e-7`.
+- Ran a direct extreme-value check with rows around +10000 and -10000. It exited 0, remained finite, and matched `torch.softmax` with maximum absolute error `5.96046448e-8`.
+- Saved exact commands, outputs, and exit codes in `observations/2026-10-12/triton-softmax-runs.txt`, with interpretation and limitations in `triton-softmax.md`. No unit tests were written, changed, or run. No latency, memory, or speedup claims were made.
+
+### Next: 06 — Implement tiled QKᵀ in Triton (requires GPU access)
+
+Load one Q tile and one K tile, compute their local dot products with `tl.dot`, and compare the score tile with PyTorch. Do not add online softmax or V accumulation until milestone 07.

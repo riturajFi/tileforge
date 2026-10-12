@@ -1,0 +1,59 @@
+Commit 05 — Triton GPU softmax manual runs
+RunPod working directory: /workspace/tileforge
+Run time: 2026-10-12T15:15:30+00:00 (20:45:30 Asia/Kolkata)
+
+$ python3 scripts/check_environment.py --require-cuda
+Python: 3.12.3
+Platform: Linux x86_64
+PyTorch: 2.8.0+cu128
+PyTorch CUDA build: 12.8
+CUDA usable by PyTorch: True
+Triton installed version: 3.4.0 (kernel execution not tested)
+NVIDIA driver query (exit 0): NVIDIA A100 80GB PCIe, 580.159.04
+CUDA compiler: nvcc unavailable (needed at milestone 10)
+cuda:0: NVIDIA A100 80GB PCIe, capability (8, 0)
+PASS: cpu tensor allocation, matrix multiplication, and SDPA smoke check
+PASS: cuda:0 tensor allocation, matrix multiplication, and SDPA smoke check
+PASS: environment check (optional missing GPU capabilities reported above)
+exit=0
+
+$ python3 -m tileforge.triton_softmax
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; shape=(7, 513); CUDA FP32; seed=0
+Maximum absolute error vs torch.softmax: 1.86264515e-09
+Maximum row-sum error: 1.19209290e-07
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+exit=0
+
+$ python3 -m tileforge.triton_softmax --rows 1 --columns 1
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; shape=(1, 1); CUDA FP32; seed=0
+Maximum absolute error vs torch.softmax: 0.00000000e+00
+Maximum row-sum error: 0.00000000e+00
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+exit=0
+
+$ python3 -m tileforge.triton_softmax --rows 3 --columns 17 --seed 7
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; shape=(3, 17); CUDA FP32; seed=7
+Maximum absolute error vs torch.softmax: 2.98023224e-08
+Maximum row-sum error: 0.00000000e+00
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+exit=0
+
+$ python3 -m tileforge.triton_softmax --rows 128 --columns 4096 --seed 11
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; shape=(128, 4096); CUDA FP32; seed=11
+Maximum absolute error vs torch.softmax: 1.86264515e-09
+Maximum row-sum error: 2.38418579e-07
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+exit=0
+
+$ python3 -c 'import torch; from tileforge.triton_softmax import triton_softmax; x=torch.tensor([[10000.0, 10001.0, 9999.0], [-10000.0, -10001.0, -9999.0]], device="cuda"); actual=triton_softmax(x); expected=torch.softmax(x, dim=1); torch.cuda.synchronize(); error=(actual-expected).abs().max().item(); print("Extreme input output:", actual.cpu()); print(f"Maximum absolute error vs torch.softmax: {error:.8e}"); assert torch.isfinite(actual).all() and torch.allclose(actual, expected, rtol=1e-5, atol=1e-6); print("PASS: extreme positive and negative rows are finite and match torch.softmax")'
+Extreme input output: tensor([[0.2447, 0.6652, 0.0900],
+        [0.2447, 0.0900, 0.6652]])
+Maximum absolute error vs torch.softmax: 5.96046448e-08
+PASS: extreme positive and negative rows are finite and match torch.softmax
+exit=0
+
+No unit tests were run, written, or modified.

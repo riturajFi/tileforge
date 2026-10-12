@@ -4,7 +4,7 @@ Build FlashAttention forward-pass kernels from scratch in **Triton** and **CUDA 
 
 **Small theory → small commit → verify → next commit.**
 
-Progress: commits **00–04 complete**. Next: **05 — Triton GPU softmax (requires NVIDIA GPU access)**. Follow the authoritative checklist in [AGENTS.md](AGENTS.md).
+Progress: commits **00–05 complete**. Next: **06 — tiled QKᵀ in Triton (requires NVIDIA GPU access)**. Follow the authoritative checklist in [AGENTS.md](AGENTS.md).
 
 ## Commit 00: reproducible CPU environment
 
@@ -106,6 +106,22 @@ uv run --locked python -m tileforge.memory_baseline --implementation tiled --len
 The correctness command compares all output rows with naive attention and SDPA. The memory command isolates its measurements from reference allocations. Choose a new results filename on each run. `--skip-profile` skips only operator profiling, preserving memory, timing, and correctness measurements.
 
 See [commit 04 observations](observations/2026-10-12/tiled-attention.md) for actual commands and raw measurements. At N=8192/D=64, peak process RSS was **265.74 MiB tiled versus 1031.77 MiB naive**; both computed the full output and matched SDPA. These are CPU measurements. All subsequent GPU milestones require real NVIDIA GPU execution.
+
+## Commit 05: Triton GPU softmax
+
+[`triton_softmax`](tileforge/triton_softmax.py) applies row-wise softmax to a contiguous 2D CUDA FP32 tensor. Triton launches one program per row. Each program loads one power-of-two block, masks lanes beyond the real column count, subtracts the row maximum, reduces the exponentials to their sum, and stores only valid outputs. Subtracting the maximum keeps exponentials finite without changing the softmax result.
+
+Run this module in an environment with CUDA-enabled PyTorch, Triton, and a compatible NVIDIA GPU:
+
+```bash
+python3 -m tileforge.triton_softmax
+python3 -m tileforge.triton_softmax --rows 1 --columns 1
+python3 -m tileforge.triton_softmax --rows 128 --columns 4096 --seed 11
+```
+
+Each command compares the Triton output with `torch.softmax`, checks finiteness, and exits nonzero on a mismatch. The project lock remains the CPU environment used for commits 00–04; the GPU runs used the RunPod image's CUDA-enabled PyTorch 2.8.0 and Triton 3.4.0 rather than replacing that lock with machine-specific GPU packages.
+
+See [commit 05 observations](observations/2026-10-12/triton-softmax.md) for the exact commands and results from an NVIDIA A100 80 GB. All tested shapes passed, including non-power-of-two widths that exercise masked loads and stores. This is a softmax learning kernel, not attention, and no performance claim is made.
 
 ## Milestones
 
