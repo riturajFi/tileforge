@@ -1,4 +1,4 @@
-"""Run the naive CPU attention baseline in a fresh process per sequence length."""
+"""Run a CPU attention memory baseline in a fresh process per sequence length."""
 
 import argparse
 from datetime import datetime
@@ -17,6 +17,7 @@ import torch
 import torch.nn.functional as functional
 
 from tileforge.naive import naive_attention, positive_int
+from tileforge.tiled import tiled_attention
 
 
 def read_system_file(path: str) -> str | None:
@@ -45,11 +46,17 @@ def measure(args: argparse.Namespace) -> dict:
     generator = torch.Generator().manual_seed(args.seed)
     q, k, v = [torch.randn(shape, generator=generator) for _ in range(3)]
 
+    def attention():
+        if args.implementation == "naive":
+            return naive_attention(q, k, v)
+        return tiled_attention(q[0, 0], k[0, 0], v[0, 0],
+                               args.query_tile, args.kv_tile)[None, None]
+
     # Measure the first actual call, before warmup, SDPA, or profiling can raise
     # the process high-water mark. Q/K/V already exist at this baseline.
     rss_before = current_rss_bytes()
     hwm_before = peak_rss_bytes()
-    output = naive_attention(q, k, v)
+    output = attention()
     hwm_after = peak_rss_bytes()
     rss_after = current_rss_bytes()
 
@@ -60,34 +67,38 @@ def measure(args: argparse.Namespace) -> dict:
     del output, reference
 
     for _ in range(args.warmup):
-        output = naive_attention(q, k, v)
+        output = attention()
         del output
     samples_ms = []
     for _ in range(args.repeats):
         start = time.perf_counter_ns()
-        output = naive_attention(q, k, v)
+        output = attention()
         elapsed = time.perf_counter_ns() - start
         samples_ms.append(elapsed / 1e6)
         del output
 
     # Profile a separate call after timing. Positive self-memory values are
     # allocations attributed to operators, NOT process peak memory.
-    with torch.profiler.profile(
-        activities=[torch.profiler.ProfilerActivity.CPU], profile_memory=True,
-    ) as profile:
-        output = naive_attention(q, k, v)
-    allocations = [
-        {"operator": event.key, "calls": event.count,
-         "self_cpu_memory_bytes": event.self_cpu_memory_usage}
-        for event in profile.key_averages() if event.self_cpu_memory_usage > 0
-    ]
+    allocations = None
+    if not args.skip_profile:
+        with torch.profiler.profile(
+            activities=[torch.profiler.ProfilerActivity.CPU], profile_memory=True,
+        ) as profile:
+            output = attention()
+        allocations = [
+            {"operator": event.key, "calls": event.count,
+             "self_cpu_memory_bytes": event.self_cpu_memory_usage}
+            for event in profile.key_averages() if event.self_cpu_memory_usage > 0
+        ]
     return {
+        "implementation": args.implementation,
         "sequence_length": n,
         "shape": list(shape),
         "qkv_bytes": sum(t.numel() * t.element_size() for t in (q, k, v)),
         "one_score_matrix_bytes": n * n * q.element_size(),
-        "three_live_score_matrices_bytes": 3 * n * n * q.element_size(),
-        "output_bytes": output.numel() * output.element_size(),
+        "three_live_score_matrices_bytes": (
+            3 * n * n * q.element_size() if args.implementation == "naive" else None),
+        "output_bytes": q.numel() * q.element_size(),
         "rss_before_first_call_bytes": rss_before,
         "rss_after_first_call_bytes": rss_after,
         "hwm_before_first_call_bytes": hwm_before,
@@ -110,6 +121,11 @@ def main() -> int:
     parser.add_argument("--warmup", type=positive_int, default=2)
     parser.add_argument("--repeats", type=positive_int, default=7)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--implementation", choices=["naive", "tiled"], default="naive")
+    parser.add_argument("--query-tile", type=positive_int, default=64)
+    parser.add_argument("--kv-tile", type=positive_int, default=128)
+    parser.add_argument("--skip-profile", action="store_true",
+                        help="Skip operator profiling, keeping first-call RSS and timing measurements.")
     parser.add_argument("--output", type=Path, help="New JSON results file; refuses to overwrite.")
     parser.add_argument("--worker-seq-len", type=positive_int, help=argparse.SUPPRESS)
     args = parser.parse_args()
@@ -138,14 +154,23 @@ def main() -> int:
         "warmup": args.warmup, "repeats": args.repeats,
         "grad_enabled": False, "causal": False, "dropout": 0.0,
         "correctness_rtol": 1e-5, "correctness_atol": 1e-6,
+        "implementation": args.implementation,
+        "query_tile": args.query_tile if args.implementation == "tiled" else None,
+        "kv_tile": args.kv_tile if args.implementation == "tiled" else None,
+        "operator_profiling": not args.skip_profile,
     }
     rows = []
-    print("N | score MiB | 3 matrices MiB | peak RSS MiB | HWM increase MiB | median ms", flush=True)
+    print(f"Implementation: {args.implementation}", flush=True)
+    print("N | full score MiB | peak RSS MiB | HWM increase MiB | median ms", flush=True)
     for n in args.lengths:
         command = [sys.executable, "-m", "tileforge.memory_baseline",
                    "--worker-seq-len", str(n), "--head-dim", str(args.head_dim),
                    "--threads", str(args.threads), "--warmup", str(args.warmup),
-                   "--repeats", str(args.repeats), "--seed", str(args.seed)]
+                   "--repeats", str(args.repeats), "--seed", str(args.seed),
+                   "--implementation", args.implementation,
+                   "--query-tile", str(args.query_tile), "--kv-tile", str(args.kv_tile)]
+        if args.skip_profile:
+            command.append("--skip-profile")
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode:
             raise RuntimeError(f"N={n}: worker exited {result.returncode}\n{result.stderr}")
@@ -155,7 +180,6 @@ def main() -> int:
         rows.append(row)
         mib = 1024 ** 2
         print(f"{n} | {row['one_score_matrix_bytes'] / mib:.3f} | "
-              f"{row['three_live_score_matrices_bytes'] / mib:.3f} | "
               f"{row['hwm_after_first_call_bytes'] / mib:.2f} | "
               f"{row['hwm_increase_bytes'] / mib:.2f} | "
               f"{row['median_latency_ms']:.3f}", flush=True)

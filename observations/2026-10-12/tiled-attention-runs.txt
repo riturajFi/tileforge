@@ -1,0 +1,89 @@
+Started: 2026-10-12T11:12:18.851795+05:30
+Python 3.12.14; PyTorch 2.10.0+cpu; one CPU compute thread
+
+$ /workspace/tileforge/.venv/bin/python -m tileforge.tiled
+N=17, D=8, query_tile=4, kv_tile=8, scenario=random, seed=0, strided=False; CPU FP32
+Output shape: (17, 8); first row: tensor([ 0.3574,  0.9161,  0.3099,  0.1858, -0.0346,  0.0686,  0.3765,  0.4589])
+PASS vs naive attention: max absolute error=3.57627869e-07
+PASS vs SDPA: max absolute error=3.57627869e-07
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+Exit: 0
+
+$ /workspace/tileforge/.venv/bin/python -m tileforge.tiled --seq-len 4 --head-dim 4 --query-tile 1 --kv-tile 1
+N=4, D=4, query_tile=1, kv_tile=1, scenario=random, seed=0, strided=False; CPU FP32
+Output shape: (4, 4); first row: tensor([-0.3231,  0.2129, -0.2897,  0.2041])
+PASS vs naive attention: max absolute error=2.38418579e-07
+PASS vs SDPA: max absolute error=4.09781933e-08
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+Exit: 0
+
+$ /workspace/tileforge/.venv/bin/python -m tileforge.tiled --seq-len 9 --head-dim 7 --query-tile 32 --kv-tile 32 --seed 7
+N=9, D=7, query_tile=32, kv_tile=32, scenario=random, seed=7, strided=False; CPU FP32
+Output shape: (9, 7); first row: tensor([-3.9585e-01,  1.0793e-04, -1.8009e-01,  1.3284e-01, -4.3320e-01,
+        -1.7314e-01,  6.2418e-01])
+PASS vs naive attention: max absolute error=2.38418579e-07
+PASS vs SDPA: max absolute error=1.19209290e-07
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+Exit: 0
+
+$ /workspace/tileforge/.venv/bin/python -m tileforge.tiled --seq-len 1 --head-dim 1
+N=1, D=1, query_tile=4, kv_tile=8, scenario=random, seed=0, strided=False; CPU FP32
+Output shape: (1, 1); first row: tensor([-2.1788])
+PASS vs naive attention: max absolute error=0.00000000e+00
+PASS vs SDPA: max absolute error=0.00000000e+00
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+Exit: 0
+
+$ /workspace/tileforge/.venv/bin/python -m tileforge.tiled --seq-len 33 --head-dim 1 --query-tile 7 --kv-tile 11
+N=33, D=1, query_tile=7, kv_tile=11, scenario=random, seed=0, strided=False; CPU FP32
+Output shape: (33, 1); first row: tensor([-0.1545])
+PASS vs naive attention: max absolute error=5.96046448e-08
+PASS vs SDPA: max absolute error=4.47034836e-08
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+Exit: 0
+
+$ /workspace/tileforge/.venv/bin/python -m tileforge.tiled --seq-len 17 --head-dim 4 --scenario extreme
+N=17, D=4, query_tile=4, kv_tile=8, scenario=extreme, seed=0, strided=False; CPU FP32
+Output shape: (17, 4); first row: tensor([-0.6898, -0.3069,  1.3256,  0.2543])
+PASS vs naive attention: max absolute error=3.57627869e-07
+PASS vs SDPA: max absolute error=1.19209290e-07
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+Exit: 0
+
+$ /workspace/tileforge/.venv/bin/python -m tileforge.tiled --scenario uniform
+N=17, D=8, query_tile=4, kv_tile=8, scenario=uniform, seed=0, strided=False; CPU FP32
+Output shape: (17, 8); first row: tensor([ 0.2017,  0.6568,  0.0485, -0.1051,  0.2864, -0.3676,  0.5968,  0.0146])
+PASS vs naive attention: max absolute error=5.96046448e-08
+PASS vs SDPA: max absolute error=5.96046448e-08
+PASS vs mean(V): max absolute error=2.98023224e-08
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+Exit: 0
+
+$ /workspace/tileforge/.venv/bin/python -m tileforge.tiled --seq-len 65 --head-dim 13 --query-tile 16 --kv-tile 23 --strided --seed 11
+N=65, D=13, query_tile=16, kv_tile=23, scenario=random, seed=11, strided=True; CPU FP32
+Output shape: (65, 13); first row: tensor([ 0.1595, -0.0042,  0.2524,  0.2255, -0.0655, -0.2775, -0.1577, -0.0372,
+         0.0783,  0.4851, -0.0592, -0.2035,  0.1865])
+PASS vs naive attention: max absolute error=2.98023224e-07
+PASS vs SDPA: max absolute error=2.98023224e-07
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+Exit: 0
+
+$ /workspace/tileforge/.venv/bin/python -m tileforge.tiled --seq-len 1024 --head-dim 64 --query-tile 64 --kv-tile 128
+N=1024, D=64, query_tile=64, kv_tile=128, scenario=random, seed=0, strided=False; CPU FP32
+Output shape: (1024, 64); first row: tensor([ 7.8713e-02,  5.2444e-02,  6.1627e-02,  5.2054e-02, -2.4520e-02,
+        -3.2802e-02,  3.3724e-02, -3.2918e-02, -3.1805e-02, -7.2323e-02,
+        -2.8145e-02, -7.1998e-02,  4.1204e-02,  1.9119e-02, -1.9089e-02,
+        -2.4824e-02, -5.4763e-02,  1.0382e-01,  6.7474e-03, -1.0259e-01,
+         2.5922e-02, -2.9490e-02, -4.8726e-03,  4.0163e-02,  2.3364e-02,
+        -1.3251e-02,  3.7808e-02, -6.8310e-02,  3.9637e-02, -4.4145e-02,
+        -6.3459e-02, -1.1688e-01,  4.6554e-02, -3.4029e-03, -1.1131e-01,
+         6.8471e-02, -5.8983e-02,  2.6695e-02, -6.8465e-03, -5.9755e-02,
+         1.0778e-01, -5.8953e-02, -4.9317e-02, -5.4064e-02,  3.6592e-02,
+         9.3384e-03, -5.0688e-02, -5.1863e-05,  4.2012e-03,  4.7852e-02,
+         2.3480e-02,  1.5932e-01,  2.3534e-02,  2.2843e-02, -3.2064e-02,
+        -1.4278e-01,  1.0664e-01, -2.9292e-02, -4.4381e-02, -1.8730e-02,
+        -7.8260e-02,  4.1301e-02, -5.2598e-03,  4.2349e-02])
+PASS vs naive attention: max absolute error=2.68220901e-07
+PASS vs SDPA: max absolute error=1.56462193e-07
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+Exit: 0

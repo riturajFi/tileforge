@@ -1,0 +1,147 @@
+{
+  "metadata": {
+    "started_at": "2026-10-12T11:13:58.088073+05:30",
+    "command": [
+      "/workspace/tileforge/.venv/bin/python",
+      "-m",
+      "tileforge.memory_baseline",
+      "--implementation",
+      "tiled",
+      "--lengths",
+      "257",
+      "--query-tile",
+      "16",
+      "--kv-tile",
+      "32",
+      "--output",
+      "observations/2026-10-12/tiled-allocation-profile.json"
+    ],
+    "python": "3.12.14",
+    "pytorch": "2.10.0+cpu",
+    "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+    "device": "cpu",
+    "dtype": "float32",
+    "cuda_available": false,
+    "cpu_model": "INTEL(R) XEON(R) PLATINUM 8573C",
+    "logical_cpus_visible": 5,
+    "cgroup_cpu_max": "400000 100000",
+    "cgroup_memory_max": "34359738368",
+    "batch": 1,
+    "heads": 1,
+    "head_dim": 64,
+    "threads": 1,
+    "interop_threads": 1,
+    "seed": 0,
+    "warmup": 2,
+    "repeats": 7,
+    "grad_enabled": false,
+    "causal": false,
+    "dropout": 0.0,
+    "correctness_rtol": 1e-05,
+    "correctness_atol": 1e-06,
+    "implementation": "tiled",
+    "query_tile": 16,
+    "kv_tile": 32,
+    "operator_profiling": true
+  },
+  "results": [
+    {
+      "implementation": "tiled",
+      "sequence_length": 257,
+      "shape": [
+        1,
+        1,
+        257,
+        64
+      ],
+      "qkv_bytes": 197376,
+      "one_score_matrix_bytes": 264196,
+      "three_live_score_matrices_bytes": null,
+      "output_bytes": 65792,
+      "rss_before_first_call_bytes": 254095360,
+      "rss_after_first_call_bytes": 268972032,
+      "hwm_before_first_call_bytes": 253923328,
+      "hwm_after_first_call_bytes": 268656640,
+      "hwm_increase_bytes": 14733312,
+      "latency_samples_ms": [
+        4.820193,
+        7.968716,
+        6.446851,
+        6.388714,
+        7.520427,
+        6.448548,
+        4.978435
+      ],
+      "median_latency_ms": 6.446851,
+      "max_absolute_error_vs_sdpa": 3.8743019104003906e-07,
+      "matches_sdpa": true,
+      "profile_positive_self_allocations": [
+        {
+          "operator": "aten::empty_strided",
+          "calls": 154,
+          "self_cpu_memory_bytes": 66360
+        },
+        {
+          "operator": "aten::new_empty",
+          "calls": 51,
+          "self_cpu_memory_bytes": 4096
+        },
+        {
+          "operator": "aten::empty",
+          "calls": 51,
+          "self_cpu_memory_bytes": 63752
+        },
+        {
+          "operator": "aten::mm",
+          "calls": 306,
+          "self_cpu_memory_bytes": 856324
+        },
+        {
+          "operator": "aten::mul",
+          "calls": 459,
+          "self_cpu_memory_bytes": 865268
+        },
+        {
+          "operator": "aten::_to_copy",
+          "calls": 153,
+          "self_cpu_memory_bytes": 44
+        },
+        {
+          "operator": "aten::amax",
+          "calls": 153,
+          "self_cpu_memory_bytes": 9252
+        },
+        {
+          "operator": "aten::maximum",
+          "calls": 153,
+          "self_cpu_memory_bytes": 9252
+        },
+        {
+          "operator": "aten::sub",
+          "calls": 306,
+          "self_cpu_memory_bytes": 273448
+        },
+        {
+          "operator": "aten::exp",
+          "calls": 306,
+          "self_cpu_memory_bytes": 273448
+        },
+        {
+          "operator": "aten::sum",
+          "calls": 153,
+          "self_cpu_memory_bytes": 9252
+        },
+        {
+          "operator": "aten::add",
+          "calls": 306,
+          "self_cpu_memory_bytes": 601380
+        },
+        {
+          "operator": "aten::div",
+          "calls": 17,
+          "self_cpu_memory_bytes": 65792
+        }
+      ]
+    }
+  ]
+}

@@ -4,7 +4,7 @@ Build FlashAttention forward-pass kernels from scratch in **Triton** and **CUDA 
 
 **Small theory → small commit → verify → next commit.**
 
-Progress: commits **00–03 complete**. Next: **04 — CPU tiled attention**. Follow the authoritative checklist in [AGENTS.md](AGENTS.md).
+Progress: commits **00–04 complete**. Next: **05 — Triton GPU softmax (requires NVIDIA GPU access)**. Follow the authoritative checklist in [AGENTS.md](AGENTS.md).
 
 ## Commit 00: reproducible CPU environment
 
@@ -90,6 +90,22 @@ uv run --locked python -m tileforge.online_softmax --seq-len 8192 --head-dim 64 
 ```
 
 Each command runs the online implementation and compares it with full softmax attention and PyTorch SDPA, exiting nonzero on a nonfinite output or mismatch. Use `--scenario uniform` for a mean(V) comparison or `--scenario negative` for large negative scores. `--trace` prints the running maximum, rescaling factor, and normalization sum per chunk. See the [actual runs and observations](observations/2026-10-12/online-softmax.md).
+
+## Commit 04: CPU tiled attention
+
+[`tiled_attention`](tileforge/tiled.py) computes every query row from Q/K/V of shape `(N, D)`. It scans query and K/V tiles, maintaining separate running maxima, sums, and numerator vectors per query row. Its CPU FP32 forward pass uses O(Br × Bc + Br × D) scratch space plus resident inputs/output, with autograd disabled.
+
+Partial tiles and non-contiguous inputs are supported. If both requested tiles cover the entire sequence, K/V are split internally to avoid allocating an N × N score tile. N=1 returns V directly. Inputs and scaled scores must be finite. This reference has no batching, masking, or dropout.
+
+```bash
+uv run --locked python -m tileforge.tiled
+uv run --locked python -m tileforge.tiled --seq-len 65 --head-dim 13 --query-tile 16 --kv-tile 23 --strided --seed 11
+uv run --locked python -m tileforge.memory_baseline --implementation tiled --lengths 2048 4096 8192 --skip-profile --output /tmp/tiled-cpu-baseline.json
+```
+
+The correctness command compares all output rows with naive attention and SDPA. The memory command isolates its measurements from reference allocations. Choose a new results filename on each run. `--skip-profile` skips only operator profiling, preserving memory, timing, and correctness measurements.
+
+See [commit 04 observations](observations/2026-10-12/tiled-attention.md) for actual commands and raw measurements. At N=8192/D=64, peak process RSS was **265.74 MiB tiled versus 1031.77 MiB naive**; both computed the full output and matched SDPA. These are CPU measurements. All subsequent GPU milestones require real NVIDIA GPU execution.
 
 ## Milestones
 

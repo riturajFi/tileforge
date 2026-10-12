@@ -35,7 +35,7 @@ The final architecture takes Q, K, and V tensors through either a Triton kernel 
 - [x] **01 — Implement naive attention.** Write PyTorch QKᵀ → scaling → softmax → V. Start with B=1, H=1, N=4, D=4. Manually verify that the output matches SDPA.
 - [x] **02 — Expose the memory bottleneck.** Measure the N × N attention matrix and runtime memory for increasing N. Record baseline measurements.
 - [x] **03 — Implement online softmax on CPU.** Process one query against K in small chunks; maintain the running maximum, sum, and numerator accumulator. Verify against full softmax attention.
-- [ ] **04 — Build CPU tiled attention.** Handle multiple Q rows, K/V tiles, and head dimensions. Never allocate the full attention matrix. Deliver a correct tiled reference.
+- [x] **04 — Build CPU tiled attention.** Handle multiple Q rows, K/V tiles, and head dimensions. Never allocate the full attention matrix. Deliver a correct tiled reference.
 - [ ] **05 — Learn Triton GPU execution.** Implement a small GPU softmax kernel. Practice program IDs, `tl.load`, `tl.store`, masks, and reductions. Deliver a working Triton kernel.
 - [ ] **06 — Implement tiled QKᵀ in Triton.** Load a Q tile and K tile, perform `tl.dot`, and validate the resulting local scores. Deliver correct tile products.
 - [ ] **07 — Implement fused Triton attention.** Combine QKᵀ, online softmax, and weighted V accumulation in a single forward kernel. Deliver the first real FlashAttention engine.
@@ -134,6 +134,14 @@ The user's AMD integrated-GPU laptop can handle the CPU milestones. The Triton G
 - All exited 0, produced finite outputs, and matched full softmax attention and SDPA at `rtol=1e-5, atol=1e-6`. Largest absolute error was `1.19209290e-7` against full softmax and `5.96046448e-8` against SDPA. The uniform run also matched mean(V).
 - Saved exact commands, output, chunk traces, and exit codes in `observations/2026-10-12/online-softmax-runs.txt`, with interpretation in `online-softmax.md`. No unit tests were written, changed, or run. No GPU or speedup claims; this milestone computes one query, not the full matrix of queries.
 
-### Next: 04 — Build CPU tiled attention
+### Completed: 04 — Build CPU tiled attention
 
-Extend online softmax to multiple query rows with Q/K/V tiles and head dimensions, without allocating the full N × N attention matrix. Run the implementation against the full reference, then update this checklist and progress record after successful manual verification.
+- Added `tileforge/tiled.py` with `tiled_attention(q, k, v, query_tile_size, kv_tile_size)` for CPU FP32 inputs `(N, D)`. Keeps separate online-softmax statistics per query row and avoids a full N × N score allocation. Handles partial/oversized tiles, non-contiguous inputs, and N=1; autograd is disabled.
+- Ran nine direct CLI configurations, recorded in `observations/2026-10-12/tiled-attention-runs.txt`. All matched naive attention and SDPA at `rtol=1e-5, atol=1e-6`; largest error in those runs was `3.57627869e-7`.
+- Extended `tileforge.memory_baseline` with `--implementation tiled`, configurable tiles, and `--skip-profile`. Ran both naive and tiled at N=2048/4096/8192 with D=64, one compute thread, two warmups, seven timed repetitions, and a fresh process per shape. All six outputs matched SDPA. Exact commands and raw JSON are linked from `observations/2026-10-12/tiled-attention.md`.
+- At N=8192, peak process RSS was 265.74 MiB tiled versus 1031.77 MiB naive; median CPU latency was 542.815 ms versus 606.434 ms in this run. Process memory includes runtime overhead, and these are not GPU results.
+- Ran separate tiled allocation profiling at N=257 with 16/32 tiles: 306 matrix multiplications, matching 17 × 9 tile pairs × 2 products; SDPA maximum error `3.87430191e-7`. The existing default naive profiling path also ran successfully at N=128. No unit tests were written, changed, or run.
+
+### Next: 05 — Learn Triton GPU execution (requires GPU access)
+
+Obtain an accessible NVIDIA GPU environment, install compatible CUDA-enabled PyTorch and Triton, and verify actual GPU execution. Then implement and run a small Triton softmax kernel using program IDs, loads, stores, masks, and reductions. Leave this milestone incomplete if GPU access is unavailable; do not substitute CPU results. Update this checklist and progress record only after successful GPU verification.
