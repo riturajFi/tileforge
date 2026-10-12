@@ -34,7 +34,7 @@ The final architecture takes Q, K, and V tensors through either a Triton kernel 
 - [x] **00 — Initialize repository.** Create the README, Python environment, and dependency configuration. Check GPU, PyTorch, and CUDA availability. Deliver a reproducible environment.
 - [x] **01 — Implement naive attention.** Write PyTorch QKᵀ → scaling → softmax → V. Start with B=1, H=1, N=4, D=4. Manually verify that the output matches SDPA.
 - [x] **02 — Expose the memory bottleneck.** Measure the N × N attention matrix and runtime memory for increasing N. Record baseline measurements.
-- [ ] **03 — Implement online softmax on CPU.** Process one query against K in small chunks; maintain the running maximum, sum, and numerator accumulator. Verify against full softmax attention.
+- [x] **03 — Implement online softmax on CPU.** Process one query against K in small chunks; maintain the running maximum, sum, and numerator accumulator. Verify against full softmax attention.
 - [ ] **04 — Build CPU tiled attention.** Handle multiple Q rows, K/V tiles, and head dimensions. Never allocate the full attention matrix. Deliver a correct tiled reference.
 - [ ] **05 — Learn Triton GPU execution.** Implement a small GPU softmax kernel. Practice program IDs, `tl.load`, `tl.store`, masks, and reductions. Deliver a working Triton kernel.
 - [ ] **06 — Implement tiled QKᵀ in Triton.** Load a Q tile and K tile, perform `tl.dot`, and validate the resulting local scores. Deliver correct tile products.
@@ -127,6 +127,13 @@ The user's AMD integrated-GPU laptop can handle the CPU milestones. The Triton G
 - At N=8192: 256 MiB per score matrix, 768 MiB across three live matrices, 1031.79 MiB measured process peak RSS, 784.25 MiB first-call high-water increase, 615.508 ms median forward latency.
 - Saved raw results and methodology/bottleneck observations under `observations/2026-10-12/`. RSS includes process overhead; these are CPU observations, not GPU measurements or proof of a bandwidth-bound kernel.
 
-### Next: 03 — Implement online softmax on CPU
+### Completed: 03 — Implement online softmax on CPU
 
-Process one query against K in small chunks, maintaining the running maximum, normalization sum, and weighted numerator accumulator. Run it directly and compare against full softmax attention. Update this checklist and progress record after successful manual verification.
+- Added `tileforge/online_softmax.py` with `online_attention(q, k, v, chunk_size)` for one CPU FP32 query. Maintains running maximum, normalization sum, and weighted numerator; rescales both accumulators on maximum changes. Forward only, with autograd disabled and O(chunk size + D) scratch space.
+- Manually ran `uv run --locked python -m tileforge.online_softmax` with nine configurations: default trace; N=9/D=8/seed=7 with chunks 1, 4, and 32; N=1; N=17/chunk=4 uniform, rising, and negative scenarios; N=8192/D=64/chunk=127/seed=11. Commands ran from `/workspace/tileforge` with `UV_CACHE_DIR=/workspace/.cache/uv`.
+- All exited 0, produced finite outputs, and matched full softmax attention and SDPA at `rtol=1e-5, atol=1e-6`. Largest absolute error was `1.19209290e-7` against full softmax and `5.96046448e-8` against SDPA. The uniform run also matched mean(V).
+- Saved exact commands, output, chunk traces, and exit codes in `observations/2026-10-12/online-softmax-runs.txt`, with interpretation in `online-softmax.md`. No unit tests were written, changed, or run. No GPU or speedup claims; this milestone computes one query, not the full matrix of queries.
+
+### Next: 04 — Build CPU tiled attention
+
+Extend online softmax to multiple query rows with Q/K/V tiles and head dimensions, without allocating the full N × N attention matrix. Run the implementation against the full reference, then update this checklist and progress record after successful manual verification.

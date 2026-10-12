@@ -1,0 +1,117 @@
+Started: 2026-10-12T10:44:01.049180+05:30
+Python: 3.12.14; PyTorch: 2.10.0+cpu; CPU FP32; one compute thread
+
+$ /workspace/tileforge/.venv/bin/python -m tileforge.online_softmax --trace
+chunk [0:2]: m=0.822013, alpha=0.000000e+00, l=1.173117
+chunk [2:4]: m=0.822013, alpha=1.000000e+00, l=1.487701
+N=4, D=4, chunk_size=2, scenario=random, seed=0; CPU FP32
+Score range: [-1.180215, 0.822013]
+Online output:
+tensor([ 0.3255,  0.6338,  0.1520, -0.3187])
+PASS vs full softmax: max absolute error=5.96046448e-08
+PASS vs SDPA: max absolute error=2.98023224e-08
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+Exit: 0
+
+$ /workspace/tileforge/.venv/bin/python -m tileforge.online_softmax --seq-len 9 --head-dim 8 --chunk-size 1 --seed 7
+N=9, D=8, chunk_size=1, scenario=random, seed=7; CPU FP32
+Score range: [-2.392456, 1.779047]
+Online output:
+tensor([-0.3728,  0.2256,  0.3431,  0.2238, -0.1243, -0.4542,  0.2533, -0.1052])
+PASS vs full softmax: max absolute error=4.47034836e-08
+PASS vs SDPA: max absolute error=5.96046448e-08
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+Exit: 0
+
+$ /workspace/tileforge/.venv/bin/python -m tileforge.online_softmax --seq-len 9 --head-dim 8 --chunk-size 4 --seed 7
+N=9, D=8, chunk_size=4, scenario=random, seed=7; CPU FP32
+Score range: [-2.392456, 1.779047]
+Online output:
+tensor([-0.3728,  0.2256,  0.3431,  0.2238, -0.1243, -0.4542,  0.2533, -0.1052])
+PASS vs full softmax: max absolute error=4.47034836e-08
+PASS vs SDPA: max absolute error=5.96046448e-08
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+Exit: 0
+
+$ /workspace/tileforge/.venv/bin/python -m tileforge.online_softmax --seq-len 9 --head-dim 8 --chunk-size 32 --seed 7
+N=9, D=8, chunk_size=32, scenario=random, seed=7; CPU FP32
+Score range: [-2.392456, 1.779047]
+Online output:
+tensor([-0.3728,  0.2256,  0.3431,  0.2238, -0.1243, -0.4542,  0.2533, -0.1052])
+PASS vs full softmax: max absolute error=5.96046448e-08
+PASS vs SDPA: max absolute error=2.98023224e-08
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+Exit: 0
+
+$ /workspace/tileforge/.venv/bin/python -m tileforge.online_softmax --seq-len 1 --chunk-size 2
+N=1, D=4, chunk_size=2, scenario=random, seed=0; CPU FP32
+Score range: [-0.831652, -0.831652]
+Online output:
+tensor([-0.7193, -0.4033, -0.5966,  0.1820])
+PASS vs full softmax: max absolute error=0.00000000e+00
+PASS vs SDPA: max absolute error=0.00000000e+00
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+Exit: 0
+
+$ /workspace/tileforge/.venv/bin/python -m tileforge.online_softmax --seq-len 17 --chunk-size 4 --scenario uniform --trace
+chunk [0:4]: m=0.000000, alpha=0.000000e+00, l=4.000000
+chunk [4:8]: m=0.000000, alpha=1.000000e+00, l=8.000000
+chunk [8:12]: m=0.000000, alpha=1.000000e+00, l=12.000000
+chunk [12:16]: m=0.000000, alpha=1.000000e+00, l=16.000000
+chunk [16:17]: m=0.000000, alpha=1.000000e+00, l=17.000000
+N=17, D=4, chunk_size=4, scenario=uniform, seed=0; CPU FP32
+Score range: [0.000000, 0.000000]
+Online output:
+tensor([ 0.2279, -0.4717,  0.2227, -0.1579])
+PASS vs full softmax: max absolute error=2.98023224e-08
+PASS vs SDPA: max absolute error=2.98023224e-08
+PASS vs mean(V): max absolute error=2.98023224e-08
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+Exit: 0
+
+$ /workspace/tileforge/.venv/bin/python -m tileforge.online_softmax --seq-len 17 --chunk-size 4 --scenario rising --trace
+chunk [0:4]: m=1003.750000, alpha=0.000000e+00, l=1.392107
+chunk [4:8]: m=1008.750000, alpha=6.737947e-03, l=1.401487
+chunk [8:12]: m=1013.750000, alpha=6.737947e-03, l=1.401551
+chunk [12:16]: m=1018.750000, alpha=6.737947e-03, l=1.401551
+chunk [16:17]: m=1020.000000, alpha=2.865048e-01, l=1.401551
+N=17, D=4, chunk_size=4, scenario=rising, seed=0; CPU FP32
+Score range: [1000.000000, 1020.000000]
+Online output:
+tensor([-0.0854, -0.7652,  0.2085, -0.8850])
+PASS vs full softmax: max absolute error=1.19209290e-07
+PASS vs SDPA: max absolute error=5.96046448e-08
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+Exit: 0
+
+$ /workspace/tileforge/.venv/bin/python -m tileforge.online_softmax --seq-len 17 --chunk-size 4 --scenario negative --trace
+chunk [0:4]: m=-996.250000, alpha=0.000000e+00, l=1.392107
+chunk [4:8]: m=-991.250000, alpha=6.737947e-03, l=1.401487
+chunk [8:12]: m=-986.250000, alpha=6.737947e-03, l=1.401551
+chunk [12:16]: m=-981.250000, alpha=6.737947e-03, l=1.401551
+chunk [16:17]: m=-980.000000, alpha=2.865048e-01, l=1.401551
+N=17, D=4, chunk_size=4, scenario=negative, seed=0; CPU FP32
+Score range: [-1000.000000, -980.000000]
+Online output:
+tensor([-0.0854, -0.7652,  0.2085, -0.8850])
+PASS vs full softmax: max absolute error=1.19209290e-07
+PASS vs SDPA: max absolute error=5.96046448e-08
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+Exit: 0
+
+$ /workspace/tileforge/.venv/bin/python -m tileforge.online_softmax --seq-len 8192 --head-dim 64 --chunk-size 127 --seed 11
+N=8192, D=64, chunk_size=127, scenario=random, seed=11; CPU FP32
+Score range: [-3.831824, 3.514971]
+Online output:
+tensor([ 0.0251,  0.0137, -0.0216, -0.0150, -0.0140,  0.0036,  0.0316,  0.0281,
+         0.0202, -0.0074, -0.0078, -0.0040, -0.0364, -0.0128,  0.0265,  0.0021,
+         0.0116,  0.0339,  0.0002, -0.0273,  0.0142,  0.0069,  0.0143, -0.0337,
+         0.0149, -0.0256, -0.0069,  0.0215, -0.0103, -0.0245, -0.0296, -0.0087,
+        -0.0087,  0.0153, -0.0056, -0.0082, -0.0180,  0.0066,  0.0385,  0.0154,
+         0.0156,  0.0004, -0.0193,  0.0029, -0.0029,  0.0081,  0.0072, -0.0247,
+         0.0037,  0.0175,  0.0035,  0.0127,  0.0076, -0.0186,  0.0096, -0.0112,
+         0.0058, -0.0005, -0.0189,  0.0131,  0.0015, -0.0124,  0.0095,  0.0068])
+PASS vs full softmax: max absolute error=5.96046448e-08
+PASS vs SDPA: max absolute error=4.47034836e-08
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-6)
+Exit: 0

@@ -4,7 +4,7 @@ Build FlashAttention forward-pass kernels from scratch in **Triton** and **CUDA 
 
 **Small theory → small commit → verify → next commit.**
 
-Progress: commits **00–02 complete**. Next: **03 — online softmax on CPU**. Follow the authoritative checklist in [AGENTS.md](AGENTS.md).
+Progress: commits **00–03 complete**. Next: **04 — CPU tiled attention**. Follow the authoritative checklist in [AGENTS.md](AGENTS.md).
 
 ## Commit 00: reproducible CPU environment
 
@@ -70,6 +70,26 @@ uv run --locked python -m tileforge.memory_baseline --output /tmp/naive-cpu-base
 Use a new output filename for each run. This Linux-only command measures each size in a fresh process, checks its output against SDPA, measures first-call peak process RSS, and records the median of seven forward timings after two warmups. A separate profiler call attributes CPU allocations to operators. Defaults use FP32 and one compute thread; `--lengths`, `--head-dim`, `--threads`, `--warmup`, `--repeats`, and `--seed` are configurable.
 
 The [2026-10-12 observations](observations/2026-10-12/README.md) include the actual results and raw JSON. At N=8192, three full score-sized tensors occupy 768 MiB versus 6 MiB of Q/K/V inputs; measured process peak RSS reaches 1031.79 MiB. These are CPU measurements, not GPU memory or speedup claims.
+
+## Commit 03: online softmax on CPU
+
+[`online_attention`](tileforge/online_softmax.py) handles one query `(D,)` against K/V `(N, D)` in chunks. After processing each chunk, it keeps:
+
+- `m`: the maximum score seen so far.
+- `l`: the sum of `exp(score - m)` over all keys seen so far.
+- `acc`: the sum of `exp(score - m) * value` over those keys.
+
+When a chunk raises the maximum to `new_m`, multiply both old accumulators by `exp(m - new_m)` before adding the chunk's contributions. This puts old and new contributions on the same scale. The final output is `acc / l`.
+
+The function requires CPU FP32 inputs and finite inputs/scaled scores. It performs forward-only attention with autograd disabled, using O(chunk size + D) scratch space rather than keeping a full sequence of scores. K/V remain resident in memory. Multiple query rows and full CPU tiling are the next milestone.
+
+```bash
+uv run --locked python -m tileforge.online_softmax --trace
+uv run --locked python -m tileforge.online_softmax --seq-len 17 --chunk-size 4 --scenario rising --trace
+uv run --locked python -m tileforge.online_softmax --seq-len 8192 --head-dim 64 --chunk-size 127 --seed 11
+```
+
+Each command runs the online implementation and compares it with full softmax attention and PyTorch SDPA, exiting nonzero on a nonfinite output or mismatch. Use `--scenario uniform` for a mean(V) comparison or `--scenario negative` for large negative scores. `--trace` prints the running maximum, rescaling factor, and normalization sum per chunk. See the [actual runs and observations](observations/2026-10-12/online-softmax.md).
 
 ## Milestones
 
