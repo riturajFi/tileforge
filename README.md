@@ -4,7 +4,7 @@ Build FlashAttention forward-pass kernels from scratch in **Triton** and **CUDA 
 
 **Small theory → small commit → verify → next commit.**
 
-Progress: commits **00–07 complete**. Next: **08 — Triton correctness features (requires NVIDIA GPU access)**. Follow the authoritative checklist in [AGENTS.md](AGENTS.md).
+Progress: commits **00–08 complete**. Next: **09 — optimize the Triton kernel (requires NVIDIA GPU access)**. Follow the authoritative checklist in [AGENTS.md](AGENTS.md).
 
 ## Commit 00: reproducible CPU environment
 
@@ -152,6 +152,21 @@ Each command compares the fused output with naive attention and PyTorch SDPA, ch
 See [commit 07 observations](observations/2026-10-12/triton-attention.md) for the RTX 2000 Ada environment, exact commands, and results. All six runs passed; the largest absolute error was `4.76837158e-07` against naive attention and `2.02655792e-06` against SDPA.
 
 This first fused kernel is forward-only, non-causal, single-sequence CUDA FP32. N must be a multiple of 16 and D must be 16, 32, or 64. Commit 08 will add tail masks, batches/heads, causal masking, FP16, and BF16.
+
+## Commit 08: Triton correctness features
+
+[`triton_attention`](tileforge/triton_attention.py) now accepts either `(N, D)` or `(B, H, N, D)` Q/K/V tensors, preserves the input shape and dtype, and supports FP32, FP16, and BF16. Masks protect partial query rows, K/V rows, and padded head-dimension lanes. An optional causal mask prevents each query from reading future keys.
+
+```bash
+python3 -m tileforge.triton_attention
+python3 -m tileforge.triton_attention --batch 2 --heads 3 --seq-len 37 --head-dim 24 --causal --seed 7
+python3 -m tileforge.triton_attention --batch 2 --heads 2 --seq-len 67 --head-dim 48 --dtype float16 --seed 11
+python3 -m tileforge.triton_attention --batch 1 --heads 3 --seq-len 33 --head-dim 80 --dtype bfloat16 --causal --seed 17
+```
+
+The CLI builds an explicit FP32 attention reference, compares PyTorch SDPA using the requested dtype and causal mode, and uses dtype-specific tolerances. See [commit 08 observations](observations/2026-10-12/triton-attention-features.md) for the exact A100 commands and results. All eight checks passed, including 1×1, odd N/D tails, multiple batches/heads, causal masking, uniform weights, rising maxima, and the preserved 2D API.
+
+The supported head dimension is at most 128. Inputs must be contiguous and Q/K/V must share their shape, dtype, and CUDA device. This remains forward-only self-attention without dropout; performance tuning starts in commit 09.
 
 ## Milestones
 

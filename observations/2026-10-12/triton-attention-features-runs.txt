@@ -1,0 +1,82 @@
+Commit 08 — Triton attention correctness features manual runs
+RunPod working directory: /workspace/tileforge
+Run time: 2026-10-12T16:31:36+00:00 (22:01:36 Asia/Kolkata)
+
+$ python3 scripts/check_environment.py --require-cuda
+Python: 3.12.3
+Platform: Linux x86_64
+PyTorch: 2.8.0+cu128
+PyTorch CUDA build: 12.8
+CUDA usable by PyTorch: True
+Triton installed version: 3.4.0 (kernel execution not tested)
+NVIDIA driver query (exit 0): NVIDIA A100 80GB PCIe, 580.159.04
+CUDA compiler: nvcc unavailable (needed at milestone 10)
+cuda:0: NVIDIA A100 80GB PCIe, capability (8, 0)
+PASS: cpu tensor allocation, matrix multiplication, and SDPA smoke check
+PASS: cuda:0 tensor allocation, matrix multiplication, and SDPA smoke check
+PASS: environment check (optional missing GPU capabilities reported above)
+exit=0
+
+$ python3 -m tileforge.triton_attention
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; shape=(1, 1, 65, 40); dtype=float32; causal=False; scenario=random; seed=0
+PASS vs FP32 reference: maximum absolute error=5.96046448e-07
+PASS vs SDPA: maximum absolute error=8.04662704e-07
+PASS: finite output and reference agreement (rtol=0.0001, atol=1e-05)
+exit=0
+
+$ python3 -m tileforge.triton_attention --batch 2 --heads 3 --seq-len 37 --head-dim 24 --causal --seed 7
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; shape=(2, 3, 37, 24); dtype=float32; causal=True; scenario=random; seed=7
+PASS vs FP32 reference: maximum absolute error=5.36441803e-07
+PASS vs SDPA: maximum absolute error=1.25169754e-06
+PASS: finite output and reference agreement (rtol=0.0001, atol=1e-05)
+exit=0
+
+$ python3 -m tileforge.triton_attention --batch 2 --heads 2 --seq-len 67 --head-dim 48 --dtype float16 --seed 11
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; shape=(2, 2, 67, 48); dtype=float16; causal=False; scenario=random; seed=11
+PASS vs FP32 reference: maximum absolute error=4.01735306e-04
+PASS vs SDPA: maximum absolute error=4.88281250e-04
+PASS: finite output and reference agreement (rtol=0.02, atol=0.002)
+exit=0
+
+$ python3 -m tileforge.triton_attention --batch 1 --heads 3 --seq-len 33 --head-dim 80 --dtype bfloat16 --causal --seed 17
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; shape=(1, 3, 33, 80); dtype=bfloat16; causal=True; scenario=random; seed=17
+PASS vs FP32 reference: maximum absolute error=5.88369370e-03
+PASS vs SDPA: maximum absolute error=3.90625000e-03
+PASS: finite output and reference agreement (rtol=0.03, atol=0.01)
+exit=0
+
+$ python3 -m tileforge.triton_attention --batch 2 --heads 2 --seq-len 17 --head-dim 23 --dtype float16 --causal --scenario rising --seed 19
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; shape=(2, 2, 17, 23); dtype=float16; causal=True; scenario=rising; seed=19
+PASS vs FP32 reference: maximum absolute error=9.54389572e-04
+PASS vs SDPA: maximum absolute error=4.88281250e-04
+PASS: finite output and reference agreement (rtol=0.02, atol=0.002)
+exit=0
+
+$ python3 -m tileforge.triton_attention --batch 2 --heads 3 --seq-len 19 --head-dim 7 --dtype bfloat16 --scenario uniform --seed 23
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; shape=(2, 3, 19, 7); dtype=bfloat16; causal=False; scenario=uniform; seed=23
+PASS vs FP32 reference: maximum absolute error=8.99493694e-04
+PASS vs SDPA: maximum absolute error=0.00000000e+00
+PASS vs mean(V): maximum absolute error=8.99434090e-04
+PASS: finite output and reference agreement (rtol=0.03, atol=0.01)
+exit=0
+
+$ python3 -m tileforge.triton_attention --seq-len 1 --head-dim 1 --causal --seed 29
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; shape=(1, 1, 1, 1); dtype=float32; causal=True; scenario=random; seed=29
+PASS vs FP32 reference: maximum absolute error=0.00000000e+00
+PASS vs SDPA: maximum absolute error=0.00000000e+00
+PASS: finite output and reference agreement (rtol=0.0001, atol=1e-05)
+exit=0
+
+$ python3 -c 'import math, torch; from tileforge.triton_attention import triton_attention; torch.manual_seed(31); q,k,v=[torch.randn(17,23,device="cuda") for _ in range(3)]; actual=triton_attention(q,k,v,causal=True); scores=(q@k.T)/math.sqrt(23); scores.masked_fill_(~torch.ones(17,17,device="cuda",dtype=torch.bool).tril(),-float("inf")); expected=torch.softmax(scores,dim=-1)@v; torch.cuda.synchronize(); error=(actual-expected).abs().max().item(); print(f"2D causal shape={tuple(actual.shape)}; maximum absolute error={error:.8e}"); assert torch.isfinite(actual).all() and torch.allclose(actual,expected,rtol=1e-4,atol=1e-5); print("PASS: preserved 2D API matches FP32 reference")'
+2D causal shape=(17, 23); maximum absolute error=1.78813934e-07
+PASS: preserved 2D API matches FP32 reference
+exit=0
+
+No unit tests were run, written, or modified.

@@ -17,7 +17,8 @@ Build FlashAttention forward-pass kernels from scratch in Triton and CUDA C++, t
 
 The final architecture takes Q, K, and V tensors through either a Triton kernel (Python + GPU) or a CUDA kernel (C++ + GPU). Each fused attention kernel processes Q/K/V tiles, applies online softmax, and writes the output without materializing an N × N attention matrix in GPU high-bandwidth memory (HBM). Compare correctness, latency, and GPU memory against PyTorch SDPA.
 
-## Strict milestone workflow
+## Strict milestone workflowFinal deadline: the linked invoice’s ITC deadline—normally 30 November after that financial year.
+
 
 - Follow the checklist below strictly, from 00 through 13, top to bottom. Do not skip, reorder, combine, or implement future milestones early.
 - Work on one milestone at a time. Each numbered commit adds one working capability.
@@ -40,7 +41,7 @@ The final architecture takes Q, K, and V tensors through either a Triton kernel 
 - [x] **05 — Learn Triton GPU execution.** Implement a small GPU softmax kernel. Practice program IDs, `tl.load`, `tl.store`, masks, and reductions. Deliver a working Triton kernel.
 - [x] **06 — Implement tiled QKᵀ in Triton.** Load a Q tile and K tile, perform `tl.dot`, and validate the resulting local scores. Deliver correct tile products.
 - [x] **07 — Implement fused Triton attention.** Combine QKᵀ, online softmax, and weighted V accumulation in a single forward kernel. Deliver the first real FlashAttention engine.
-- [ ] **08 — Add correctness features.** Support causal masking, non-multiple tile sizes, multiple batches/heads, FP16, and BF16. Verify correctness on supported shapes.
+- [x] **08 — Add correctness features.** Support causal masking, non-multiple tile sizes, multiple batches/heads, FP16, and BF16. Verify correctness on supported shapes.
 - [ ] **09 — Optimize the Triton kernel.** Experiment with tile sizes, warp counts, and pipeline stages; record performance changes. Deliver a tuned Triton engine.
 - [ ] **10 — Build the CUDA C++ foundation.** Create a PyTorch CUDA extension. Learn thread/block mapping, global memory, shared memory, and synchronization. Deliver a callable CUDA kernel.
 - [ ] **11 — Implement simple CUDA attention.** Write a correct basic CUDA attention implementation before fusion and tiling. Establish the CUDA numerical baseline.
@@ -87,7 +88,7 @@ Keep batch size, number of heads, head dimension, dtype, and causal mode identic
 
 ## Hardware and references
 
-The user's AMD integrated-GPU laptop can handle the CPU milestones. The Triton GPU kernels, NVIDIA CUDA implementation, and GPU benchmarks require access to a compatible NVIDIA GPU, locally or in the cloud. Milestones 05–06 were verified on a RunPod NVIDIA A100 80 GB, and milestone 07 on a RunPod NVIDIA RTX 2000 Ada 16 GB, with CUDA-enabled PyTorch and Triton. The local locked environment remains CPU-only, and the verified RunPod images have no `nvcc`; a CUDA compiler is required at milestone 10.
+The user's AMD integrated-GPU laptop can handle the CPU milestones. The Triton GPU kernels, NVIDIA CUDA implementation, and GPU benchmarks require access to a compatible NVIDIA GPU, locally or in the cloud. Milestones 05–06 and 08 were verified on a RunPod NVIDIA A100 80 GB, and milestone 07 on a RunPod NVIDIA RTX 2000 Ada 16 GB, with CUDA-enabled PyTorch and Triton. The local locked environment remains CPU-only, and the verified RunPod images have no `nvcc`; a CUDA compiler is required at milestone 10.
 
 - [Triton — Fused Softmax](https://triton-lang.org/main/getting-started/tutorials/02-fused-softmax.html)
 - [Triton — Matrix Multiplication](https://triton-lang.org/main/getting-started/tutorials/03-matrix-multiplication.html)
@@ -166,6 +167,14 @@ The user's AMD integrated-GPU laptop can handle the CPU milestones. The Triton G
 - Ran `python3 scripts/check_environment.py --require-cuda` and six kernel configurations covering N=16–128, D=16–64, random inputs, uniform scores, and scores whose maxima rise across eight K/V tiles. Every command exited 0, produced finite outputs, and matched naive attention and SDPA at `rtol=1e-4, atol=1e-5`. Largest errors were `4.76837158e-7` against naive attention and `2.02655792e-6` against SDPA.
 - Saved exact commands, outputs, and exit codes in `observations/2026-10-12/triton-attention-runs.txt`, with interpretation and limitations in `triton-attention.md`. No unit tests were written, changed, or run. No latency, measured-memory, or speedup claims were made.
 
-### Next: 08 — Add correctness features (requires GPU access)
+### Completed: 08 — Add correctness features
 
-Add causal masking, non-multiple tile sizes, multiple batches/heads, FP16, and BF16. Verify each supported combination before any performance tuning.
+- Extended `tileforge/triton_attention.py` to accept contiguous `(N, D)` or `(B, H, N, D)` Q/K/V tensors, preserving the input shape and dtype. A two-dimensional launch grid maps programs across query tiles and flattened batch/head pairs.
+- Added masked Q/K/V loads and output stores for arbitrary positive N and D up to 128, causal score masking, and FP32, FP16, and BF16 paths. Online-softmax statistics and weighted-V accumulation remain FP32; output converts to the input dtype.
+- Verified actual GPU execution on a RunPod NVIDIA A100 80 GB (capability 8.0), driver 580.159.04, Python 3.12.3, PyTorch 2.8.0+cu128, and Triton 3.4.0. BF16 support was reported available; `nvcc` remained unavailable, which is acceptable until milestone 10.
+- Ran `python3 scripts/check_environment.py --require-cuda` and eight direct kernel checks covering 1×1, preserved 2D input, B=2/H=3, odd N/D tails, causal masking, FP16, BF16, uniform weights, and rising maxima. Every command exited 0 and matched an explicit FP32 reference plus SDPA within dtype-specific tolerances. Largest errors against FP32 reference were `5.96046448e-7` for FP32, `9.54389572e-4` for FP16, and `5.88369370e-3` for BF16.
+- Saved exact commands, outputs, and exit codes in `observations/2026-10-12/triton-attention-features-runs.txt`, with interpretation and limits in `triton-attention-features.md`. No unit tests were written, changed, or run. No latency, measured-memory, or speedup claims were made.
+
+### Next: 09 — Optimize the Triton kernel (requires GPU access)
+
+Measure the correct kernel first, then experiment with tile sizes, warp counts, and pipeline stages one variable at a time. Record each performance change without altering correctness scope.
