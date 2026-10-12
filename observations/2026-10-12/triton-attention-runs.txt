@@ -1,0 +1,75 @@
+Commit 07 — fused Triton attention manual runs
+RunPod working directory: /workspace/tileforge
+Run time: 2026-10-12T16:20:13+00:00 (21:50:13 Asia/Kolkata)
+
+$ python3 scripts/check_environment.py --require-cuda
+Python: 3.12.3
+Platform: Linux x86_64
+PyTorch: 2.8.0+cu128
+PyTorch CUDA build: 12.8
+CUDA usable by PyTorch: True
+Triton installed version: 3.4.0 (kernel execution not tested)
+NVIDIA driver query (exit 0): NVIDIA RTX 2000 Ada Generation, 580.159.04
+CUDA compiler: nvcc unavailable (needed at milestone 10)
+cuda:0: NVIDIA RTX 2000 Ada Generation, capability (8, 9)
+PASS: cpu tensor allocation, matrix multiplication, and SDPA smoke check
+PASS: cuda:0 tensor allocation, matrix multiplication, and SDPA smoke check
+PASS: environment check (optional missing GPU capabilities reported above)
+exit=0
+
+$ python3 -m tileforge.triton_attention
+GPU: NVIDIA RTX 2000 Ada Generation
+PyTorch 2.8.0+cu128; Triton 3.4.0; N=64; D=32; scenario=random; seed=0
+Output shape: (64, 32)
+PASS vs naive attention: maximum absolute error=2.68220901e-07
+PASS vs SDPA: maximum absolute error=1.25169754e-06
+PASS: finite output and reference agreement (rtol=1e-4, atol=1e-5)
+exit=0
+
+$ python3 -m tileforge.triton_attention --seq-len 16 --head-dim 16 --seed 7
+GPU: NVIDIA RTX 2000 Ada Generation
+PyTorch 2.8.0+cu128; Triton 3.4.0; N=16; D=16; scenario=random; seed=7
+Output shape: (16, 16)
+PASS vs naive attention: maximum absolute error=1.78813934e-07
+PASS vs SDPA: maximum absolute error=3.57627869e-07
+PASS: finite output and reference agreement (rtol=1e-4, atol=1e-5)
+exit=0
+
+$ python3 -m tileforge.triton_attention --seq-len 32 --head-dim 64 --seed 11
+GPU: NVIDIA RTX 2000 Ada Generation
+PyTorch 2.8.0+cu128; Triton 3.4.0; N=32; D=64; scenario=random; seed=11
+Output shape: (32, 64)
+PASS vs naive attention: maximum absolute error=4.76837158e-07
+PASS vs SDPA: maximum absolute error=2.02655792e-06
+PASS: finite output and reference agreement (rtol=1e-4, atol=1e-5)
+exit=0
+
+$ python3 -m tileforge.triton_attention --seq-len 128 --head-dim 64 --seed 19
+GPU: NVIDIA RTX 2000 Ada Generation
+PyTorch 2.8.0+cu128; Triton 3.4.0; N=128; D=64; scenario=random; seed=19
+Output shape: (128, 64)
+PASS vs naive attention: maximum absolute error=4.17232513e-07
+PASS vs SDPA: maximum absolute error=7.74860382e-07
+PASS: finite output and reference agreement (rtol=1e-4, atol=1e-5)
+exit=0
+
+$ python3 -m tileforge.triton_attention --seq-len 64 --head-dim 32 --scenario uniform --seed 23
+GPU: NVIDIA RTX 2000 Ada Generation
+PyTorch 2.8.0+cu128; Triton 3.4.0; N=64; D=32; scenario=uniform; seed=23
+Output shape: (64, 32)
+PASS vs naive attention: maximum absolute error=2.98023224e-08
+PASS vs SDPA: maximum absolute error=5.96046448e-08
+PASS vs mean(V): maximum absolute error=4.09781933e-08
+PASS: finite output and reference agreement (rtol=1e-4, atol=1e-5)
+exit=0
+
+$ python3 -m tileforge.triton_attention --seq-len 128 --head-dim 64 --scenario rising --seed 29
+GPU: NVIDIA RTX 2000 Ada Generation
+PyTorch 2.8.0+cu128; Triton 3.4.0; N=128; D=64; scenario=rising; seed=29
+Output shape: (128, 64)
+PASS vs naive attention: maximum absolute error=1.19209290e-07
+PASS vs SDPA: maximum absolute error=1.37090683e-06
+PASS: finite output and reference agreement (rtol=1e-4, atol=1e-5)
+exit=0
+
+No unit tests were run, written, or modified.

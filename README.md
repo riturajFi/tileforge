@@ -4,7 +4,7 @@ Build FlashAttention forward-pass kernels from scratch in **Triton** and **CUDA 
 
 **Small theory → small commit → verify → next commit.**
 
-Progress: commits **00–06 complete**. Next: **07 — fused Triton attention (requires NVIDIA GPU access)**. Follow the authoritative checklist in [AGENTS.md](AGENTS.md).
+Progress: commits **00–07 complete**. Next: **08 — Triton correctness features (requires NVIDIA GPU access)**. Follow the authoritative checklist in [AGENTS.md](AGENTS.md).
 
 ## Commit 00: reproducible CPU environment
 
@@ -136,6 +136,22 @@ python3 -m tileforge.triton_qk --query-rows 128 --key-rows 96 --head-dim 64 --se
 Each command compares the complete Triton score matrix with `Q @ K.T`, checks finiteness, and exits nonzero on a mismatch. See [commit 06 observations](observations/2026-10-12/triton-qk.md) for the A100 environment, exact commands, and results. All five tested shapes passed; the largest absolute error was `9.53674316e-06`.
 
 This milestone deliberately writes the full score matrix so every local tile can be checked. It does not scale scores, apply softmax, read V, or avoid the N×N HBM allocation. Milestone 07 will fuse those operations and stop writing scores to HBM.
+
+## Commit 07: fused Triton attention
+
+[`triton_attention`](tileforge/triton_attention.py) is the first complete FlashAttention forward engine in this project. One Triton program owns 16 query rows, loads Q once, scans K/V in 16-row tiles, computes scaled scores, updates online-softmax maxima and sums, accumulates weighted V, and writes only the final `(N, D)` output. No full N×N score or weight tensor is allocated in HBM.
+
+```bash
+python3 -m tileforge.triton_attention
+python3 -m tileforge.triton_attention --seq-len 64 --head-dim 32 --scenario uniform --seed 23
+python3 -m tileforge.triton_attention --seq-len 128 --head-dim 64 --scenario rising --seed 29
+```
+
+Each command compares the fused output with naive attention and PyTorch SDPA, checks finiteness, and exits nonzero on a mismatch. The uniform scenario must also equal `mean(V)`. The rising scenario makes later K/V tiles raise the row maximum, directly checking that the kernel rescales earlier softmax state correctly.
+
+See [commit 07 observations](observations/2026-10-12/triton-attention.md) for the RTX 2000 Ada environment, exact commands, and results. All six runs passed; the largest absolute error was `4.76837158e-07` against naive attention and `2.02655792e-06` against SDPA.
+
+This first fused kernel is forward-only, non-causal, single-sequence CUDA FP32. N must be a multiple of 16 and D must be 16, 32, or 64. Commit 08 will add tail masks, batches/heads, causal masking, FP16, and BF16.
 
 ## Milestones
 

@@ -39,7 +39,7 @@ The final architecture takes Q, K, and V tensors through either a Triton kernel 
 - [x] **04 — Build CPU tiled attention.** Handle multiple Q rows, K/V tiles, and head dimensions. Never allocate the full attention matrix. Deliver a correct tiled reference.
 - [x] **05 — Learn Triton GPU execution.** Implement a small GPU softmax kernel. Practice program IDs, `tl.load`, `tl.store`, masks, and reductions. Deliver a working Triton kernel.
 - [x] **06 — Implement tiled QKᵀ in Triton.** Load a Q tile and K tile, perform `tl.dot`, and validate the resulting local scores. Deliver correct tile products.
-- [ ] **07 — Implement fused Triton attention.** Combine QKᵀ, online softmax, and weighted V accumulation in a single forward kernel. Deliver the first real FlashAttention engine.
+- [x] **07 — Implement fused Triton attention.** Combine QKᵀ, online softmax, and weighted V accumulation in a single forward kernel. Deliver the first real FlashAttention engine.
 - [ ] **08 — Add correctness features.** Support causal masking, non-multiple tile sizes, multiple batches/heads, FP16, and BF16. Verify correctness on supported shapes.
 - [ ] **09 — Optimize the Triton kernel.** Experiment with tile sizes, warp counts, and pipeline stages; record performance changes. Deliver a tuned Triton engine.
 - [ ] **10 — Build the CUDA C++ foundation.** Create a PyTorch CUDA extension. Learn thread/block mapping, global memory, shared memory, and synchronization. Deliver a callable CUDA kernel.
@@ -87,7 +87,7 @@ Keep batch size, number of heads, head dimension, dtype, and causal mode identic
 
 ## Hardware and references
 
-The user's AMD integrated-GPU laptop can handle the CPU milestones. The Triton GPU kernels, NVIDIA CUDA implementation, and GPU benchmarks require access to a compatible NVIDIA GPU, locally or in the cloud. Milestones 05–06 were verified on a RunPod NVIDIA A100 80 GB with CUDA-enabled PyTorch and Triton. The local locked environment remains CPU-only, and the verified RunPod image has no `nvcc`; a CUDA compiler is required at milestone 10.
+The user's AMD integrated-GPU laptop can handle the CPU milestones. The Triton GPU kernels, NVIDIA CUDA implementation, and GPU benchmarks require access to a compatible NVIDIA GPU, locally or in the cloud. Milestones 05–06 were verified on a RunPod NVIDIA A100 80 GB, and milestone 07 on a RunPod NVIDIA RTX 2000 Ada 16 GB, with CUDA-enabled PyTorch and Triton. The local locked environment remains CPU-only, and the verified RunPod images have no `nvcc`; a CUDA compiler is required at milestone 10.
 
 - [Triton — Fused Softmax](https://triton-lang.org/main/getting-started/tutorials/02-fused-softmax.html)
 - [Triton — Matrix Multiplication](https://triton-lang.org/main/getting-started/tutorials/03-matrix-multiplication.html)
@@ -158,6 +158,14 @@ The user's AMD integrated-GPU laptop can handle the CPU milestones. The Triton G
 - Ran `python3 scripts/check_environment.py --require-cuda` and five Q/K shapes: 17×13 by 23×13, 1×1 by 1×1, 32×16 by 48×16, 33×31 by 35×31, and 128×64 by 96×64. Every command exited 0, produced a finite output of the expected shape, and matched `Q @ K.T` at `rtol=1e-5, atol=1e-5`. The largest absolute error was `9.53674316e-6`.
 - Saved exact commands, outputs, and exit codes in `observations/2026-10-12/triton-qk-runs.txt`, with interpretation and limitations in `triton-qk.md`. No unit tests were written, changed, or run. No latency, memory, or speedup claims were made.
 
-### Next: 07 — Implement fused Triton attention (requires GPU access)
+### Completed: 07 — Implement fused Triton attention
 
-Combine tiled QKᵀ, scaling, online softmax, and weighted V accumulation in one forward kernel. Do not add milestone 08 features such as causal masking, tail-shape support guarantees, multiple batches/heads, FP16, or BF16.
+- Added `tileforge/triton_attention.py` with a forward-only, non-causal CUDA FP32 attention kernel. One Triton program owns 16 query rows and scans 16-row K/V tiles while maintaining per-row running maxima, normalization sums, and weighted-V accumulators. It writes only the final output, not full N×N score or weight matrices.
+- Kept milestone 08 separate: this first fused kernel accepts one contiguous `(N, D)` sequence, requires N divisible by 16 and D in {16, 32, 64}, and does not support causal masking, batches/heads, FP16, or BF16.
+- Verified actual GPU execution on a RunPod NVIDIA RTX 2000 Ada 16 GB (capability 8.9), driver 580.159.04, Python 3.12.3, PyTorch 2.8.0+cu128, and Triton 3.4.0. `nvcc` remained unavailable, which is acceptable until milestone 10.
+- Ran `python3 scripts/check_environment.py --require-cuda` and six kernel configurations covering N=16–128, D=16–64, random inputs, uniform scores, and scores whose maxima rise across eight K/V tiles. Every command exited 0, produced finite outputs, and matched naive attention and SDPA at `rtol=1e-4, atol=1e-5`. Largest errors were `4.76837158e-7` against naive attention and `2.02655792e-6` against SDPA.
+- Saved exact commands, outputs, and exit codes in `observations/2026-10-12/triton-attention-runs.txt`, with interpretation and limitations in `triton-attention.md`. No unit tests were written, changed, or run. No latency, measured-memory, or speedup claims were made.
+
+### Next: 08 — Add correctness features (requires GPU access)
+
+Add causal masking, non-multiple tile sizes, multiple batches/heads, FP16, and BF16. Verify each supported combination before any performance tuning.
