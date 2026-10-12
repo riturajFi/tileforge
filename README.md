@@ -4,7 +4,7 @@ Build FlashAttention forward-pass kernels from scratch in **Triton** and **CUDA 
 
 **Small theory → small commit → verify → next commit.**
 
-Progress: commits **00–05 complete**. Next: **06 — tiled QKᵀ in Triton (requires NVIDIA GPU access)**. Follow the authoritative checklist in [AGENTS.md](AGENTS.md).
+Progress: commits **00–06 complete**. Next: **07 — fused Triton attention (requires NVIDIA GPU access)**. Follow the authoritative checklist in [AGENTS.md](AGENTS.md).
 
 ## Commit 00: reproducible CPU environment
 
@@ -122,6 +122,20 @@ python3 -m tileforge.triton_softmax --rows 128 --columns 4096 --seed 11
 Each command compares the Triton output with `torch.softmax`, checks finiteness, and exits nonzero on a mismatch. The project lock remains the CPU environment used for commits 00–04; the GPU runs used the RunPod image's CUDA-enabled PyTorch 2.8.0 and Triton 3.4.0 rather than replacing that lock with machine-specific GPU packages.
 
 See [commit 05 observations](observations/2026-10-12/triton-softmax.md) for the exact commands and results from an NVIDIA A100 80 GB. All tested shapes passed, including non-power-of-two widths that exercise masked loads and stores. This is a softmax learning kernel, not attention, and no performance claim is made.
+
+## Commit 06: tiled QKᵀ in Triton
+
+[`triton_qk`](tileforge/triton_qk.py) computes an unscaled score matrix from contiguous 2D CUDA FP32 Q and K tensors. Triton launches a two-dimensional grid of programs. Each program owns one 16×16 output tile, loads Q and K in 16-wide head-dimension chunks, calls `tl.dot`, and masks partial rows, columns, and reduction chunks.
+
+```bash
+python3 -m tileforge.triton_qk
+python3 -m tileforge.triton_qk --query-rows 33 --key-rows 35 --head-dim 31 --seed 11
+python3 -m tileforge.triton_qk --query-rows 128 --key-rows 96 --head-dim 64 --seed 19
+```
+
+Each command compares the complete Triton score matrix with `Q @ K.T`, checks finiteness, and exits nonzero on a mismatch. See [commit 06 observations](observations/2026-10-12/triton-qk.md) for the A100 environment, exact commands, and results. All five tested shapes passed; the largest absolute error was `9.53674316e-06`.
+
+This milestone deliberately writes the full score matrix so every local tile can be checked. It does not scale scores, apply softmax, read V, or avoid the N×N HBM allocation. Milestone 07 will fuse those operations and stop writing scores to HBM.
 
 ## Milestones
 

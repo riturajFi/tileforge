@@ -38,7 +38,7 @@ The final architecture takes Q, K, and V tensors through either a Triton kernel 
 - [x] **03 — Implement online softmax on CPU.** Process one query against K in small chunks; maintain the running maximum, sum, and numerator accumulator. Verify against full softmax attention.
 - [x] **04 — Build CPU tiled attention.** Handle multiple Q rows, K/V tiles, and head dimensions. Never allocate the full attention matrix. Deliver a correct tiled reference.
 - [x] **05 — Learn Triton GPU execution.** Implement a small GPU softmax kernel. Practice program IDs, `tl.load`, `tl.store`, masks, and reductions. Deliver a working Triton kernel.
-- [ ] **06 — Implement tiled QKᵀ in Triton.** Load a Q tile and K tile, perform `tl.dot`, and validate the resulting local scores. Deliver correct tile products.
+- [x] **06 — Implement tiled QKᵀ in Triton.** Load a Q tile and K tile, perform `tl.dot`, and validate the resulting local scores. Deliver correct tile products.
 - [ ] **07 — Implement fused Triton attention.** Combine QKᵀ, online softmax, and weighted V accumulation in a single forward kernel. Deliver the first real FlashAttention engine.
 - [ ] **08 — Add correctness features.** Support causal masking, non-multiple tile sizes, multiple batches/heads, FP16, and BF16. Verify correctness on supported shapes.
 - [ ] **09 — Optimize the Triton kernel.** Experiment with tile sizes, warp counts, and pipeline stages; record performance changes. Deliver a tuned Triton engine.
@@ -87,7 +87,7 @@ Keep batch size, number of heads, head dimension, dtype, and causal mode identic
 
 ## Hardware and references
 
-The user's AMD integrated-GPU laptop can handle the CPU milestones. The Triton GPU kernels, NVIDIA CUDA implementation, and GPU benchmarks require access to a compatible NVIDIA GPU, locally or in the cloud. Milestone 05 was verified on a RunPod NVIDIA A100 80 GB with CUDA-enabled PyTorch and Triton. The local locked environment remains CPU-only, and the verified RunPod image has no `nvcc`; a CUDA compiler is required at milestone 10.
+The user's AMD integrated-GPU laptop can handle the CPU milestones. The Triton GPU kernels, NVIDIA CUDA implementation, and GPU benchmarks require access to a compatible NVIDIA GPU, locally or in the cloud. Milestones 05–06 were verified on a RunPod NVIDIA A100 80 GB with CUDA-enabled PyTorch and Triton. The local locked environment remains CPU-only, and the verified RunPod image has no `nvcc`; a CUDA compiler is required at milestone 10.
 
 - [Triton — Fused Softmax](https://triton-lang.org/main/getting-started/tutorials/02-fused-softmax.html)
 - [Triton — Matrix Multiplication](https://triton-lang.org/main/getting-started/tutorials/03-matrix-multiplication.html)
@@ -151,6 +151,13 @@ The user's AMD integrated-GPU laptop can handle the CPU milestones. The Triton G
 - Ran a direct extreme-value check with rows around +10000 and -10000. It exited 0, remained finite, and matched `torch.softmax` with maximum absolute error `5.96046448e-8`.
 - Saved exact commands, outputs, and exit codes in `observations/2026-10-12/triton-softmax-runs.txt`, with interpretation and limitations in `triton-softmax.md`. No unit tests were written, changed, or run. No latency, memory, or speedup claims were made.
 
-### Next: 06 — Implement tiled QKᵀ in Triton (requires GPU access)
+### Completed: 06 — Implement tiled QKᵀ in Triton
 
-Load one Q tile and one K tile, compute their local dot products with `tl.dot`, and compare the score tile with PyTorch. Do not add online softmax or V accumulation until milestone 07.
+- Added `tileforge/triton_qk.py` with an unscaled CUDA FP32 QKᵀ kernel. A two-dimensional Triton program grid computes 16×16 output tiles, scans the head dimension in 16-wide chunks, uses masked loads with zero padding, accumulates with `tl.dot`, and masks output stores.
+- Verified actual GPU execution on a RunPod NVIDIA A100 80 GB (capability 8.0), driver 595.91.07, Python 3.12.3, PyTorch 2.8.0+cu128, and Triton 3.4.0. `nvcc` remained unavailable, which is acceptable until milestone 10.
+- Ran `python3 scripts/check_environment.py --require-cuda` and five Q/K shapes: 17×13 by 23×13, 1×1 by 1×1, 32×16 by 48×16, 33×31 by 35×31, and 128×64 by 96×64. Every command exited 0, produced a finite output of the expected shape, and matched `Q @ K.T` at `rtol=1e-5, atol=1e-5`. The largest absolute error was `9.53674316e-6`.
+- Saved exact commands, outputs, and exit codes in `observations/2026-10-12/triton-qk-runs.txt`, with interpretation and limitations in `triton-qk.md`. No unit tests were written, changed, or run. No latency, memory, or speedup claims were made.
+
+### Next: 07 — Implement fused Triton attention (requires GPU access)
+
+Combine tiled QKᵀ, scaling, online softmax, and weighted V accumulation in one forward kernel. Do not add milestone 08 features such as causal masking, tail-shape support guarantees, multiple batches/heads, FP16, or BF16.

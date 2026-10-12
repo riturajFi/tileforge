@@ -1,0 +1,60 @@
+Commit 06 — tiled Triton QKᵀ manual runs
+RunPod working directory: /workspace/tileforge
+Run time: 2026-10-12T15:50:46+00:00 (21:20:46 Asia/Kolkata)
+
+$ python3 scripts/check_environment.py --require-cuda
+Python: 3.12.3
+Platform: Linux x86_64
+PyTorch: 2.8.0+cu128
+PyTorch CUDA build: 12.8
+CUDA usable by PyTorch: True
+Triton installed version: 3.4.0 (kernel execution not tested)
+NVIDIA driver query (exit 0): NVIDIA A100 80GB PCIe, 595.91.07
+CUDA compiler: nvcc unavailable (needed at milestone 10)
+cuda:0: NVIDIA A100 80GB PCIe, capability (8, 0)
+PASS: cpu tensor allocation, matrix multiplication, and SDPA smoke check
+PASS: cuda:0 tensor allocation, matrix multiplication, and SDPA smoke check
+PASS: environment check (optional missing GPU capabilities reported above)
+exit=0
+
+$ python3 -m tileforge.triton_qk
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; Q=(17, 13); K=(23, 13); CUDA FP32; seed=0
+Output shape: (17, 23)
+Maximum absolute error vs Q @ K.T: 0.00000000e+00
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-5)
+exit=0
+
+$ python3 -m tileforge.triton_qk --query-rows 1 --key-rows 1 --head-dim 1
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; Q=(1, 1); K=(1, 1); CUDA FP32; seed=0
+Output shape: (1, 1)
+Maximum absolute error vs Q @ K.T: 0.00000000e+00
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-5)
+exit=0
+
+$ python3 -m tileforge.triton_qk --query-rows 32 --key-rows 48 --head-dim 16 --seed 7
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; Q=(32, 16); K=(48, 16); CUDA FP32; seed=7
+Output shape: (32, 48)
+Maximum absolute error vs Q @ K.T: 0.00000000e+00
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-5)
+exit=0
+
+$ python3 -m tileforge.triton_qk --query-rows 33 --key-rows 35 --head-dim 31 --seed 11
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; Q=(33, 31); K=(35, 31); CUDA FP32; seed=11
+Output shape: (33, 35)
+Maximum absolute error vs Q @ K.T: 3.81469727e-06
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-5)
+exit=0
+
+$ python3 -m tileforge.triton_qk --query-rows 128 --key-rows 96 --head-dim 64 --seed 19
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; Q=(128, 64); K=(96, 64); CUDA FP32; seed=19
+Output shape: (128, 96)
+Maximum absolute error vs Q @ K.T: 9.53674316e-06
+PASS: finite output and reference agreement (rtol=1e-5, atol=1e-5)
+exit=0
+
+No unit tests were run, written, or modified.
