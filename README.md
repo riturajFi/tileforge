@@ -4,9 +4,11 @@ Build FlashAttention forward-pass kernels from scratch in **Triton** and **CUDA 
 
 **Small theory → small commit → verify → next commit.**
 
+Progress: commits **00 and 01 complete**. Next: **02 — expose the memory bottleneck**. Follow the authoritative checklist in [AGENTS.md](AGENTS.md).
+
 ## Commit 00: reproducible CPU environment
 
-Naive attention materializes an N × N score matrix. FlashAttention instead scans Q/K/V tiles, keeps running softmax statistics and output accumulators, and avoids writing the full score matrix to GPU memory. We will build and verify those pieces incrementally. No custom attention implementation is included yet.
+Naive attention materializes an N × N score matrix. FlashAttention instead scans Q/K/V tiles, keeps running softmax statistics and output accumulators, and avoids writing the full score matrix to GPU memory. We will build and verify those pieces incrementally.
 
 Prerequisites: Python 3.12 and [uv](https://docs.astral.sh/uv/getting-started/installation/) 0.12.23 (supported range: 0.12.x from 0.12.23). From the repository root:
 
@@ -29,6 +31,33 @@ uv run --locked python scripts/check_environment.py --require-cuda --require-nvc
 ```
 
 These commands deliberately fail in the commit 00 CPU environment. GPU kernel execution and CUDA extension compilation will be validated in their respective milestones.
+
+## Commit 01: naive attention
+
+[`naive_attention`](tileforge/naive.py) implements the four operations explicitly:
+
+1. Compute scores: `Q @ K.transpose(-2, -1)`.
+2. Scale by `1 / sqrt(D)` to control the magnitude of dot products.
+3. Apply softmax along the key dimension so each query's weights sum to one.
+4. Multiply those weights by V to produce the output.
+
+Inputs share shape `(B, H, N, D)`, floating-point dtype, and device. The output has the same shape. This baseline uses no causal mask or dropout and materializes the full `(B, H, N, N)` score matrix. The manual comparison runs on CPU in FP32, starting with `B=1, H=1, N=4, D=4`:
+
+```bash
+uv run --locked python -m tileforge.naive
+uv run --locked python -m tileforge.naive --seed 7
+uv run --locked python -m tileforge.naive --seq-len 9 --head-dim 8
+```
+
+Each command runs the implementation and PyTorch SDPA on the same reproducible random inputs, prints both outputs and the maximum absolute error, and exits nonzero if they differ beyond `rtol=1e-5, atol=1e-6`. These are direct execution commands; no unit-test suite is used.
+
+From Python launched in the repository root:
+
+```python
+from tileforge.naive import naive_attention
+
+output = naive_attention(q, k, v)
+```
 
 ## Milestones
 
