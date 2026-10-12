@@ -1,0 +1,401 @@
+{
+  "metadata": {
+    "started_at": "2026-10-12T10:37:46.051226+05:30",
+    "command": [
+      "/workspace/tileforge/.venv/bin/python",
+      "-m",
+      "tileforge.memory_baseline",
+      "--output",
+      "observations/2026-10-12/naive-cpu-baseline.json"
+    ],
+    "python": "3.12.14",
+    "pytorch": "2.10.0+cpu",
+    "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+    "device": "cpu",
+    "dtype": "float32",
+    "cuda_available": false,
+    "cpu_model": "INTEL(R) XEON(R) PLATINUM 8573C",
+    "logical_cpus_visible": 5,
+    "cgroup_cpu_max": "400000 100000",
+    "cgroup_memory_max": "34359738368",
+    "batch": 1,
+    "heads": 1,
+    "head_dim": 64,
+    "threads": 1,
+    "interop_threads": 1,
+    "seed": 0,
+    "warmup": 2,
+    "repeats": 7,
+    "grad_enabled": false,
+    "causal": false,
+    "dropout": 0.0,
+    "correctness_rtol": 1e-05,
+    "correctness_atol": 1e-06
+  },
+  "results": [
+    {
+      "sequence_length": 128,
+      "shape": [
+        1,
+        1,
+        128,
+        64
+      ],
+      "qkv_bytes": 98304,
+      "one_score_matrix_bytes": 65536,
+      "three_live_score_matrices_bytes": 196608,
+      "output_bytes": 32768,
+      "rss_before_first_call_bytes": 254328832,
+      "rss_after_first_call_bytes": 265641984,
+      "hwm_before_first_call_bytes": 254238720,
+      "hwm_after_first_call_bytes": 265506816,
+      "hwm_increase_bytes": 11268096,
+      "latency_samples_ms": [
+        0.064738,
+        0.0628,
+        0.093831,
+        0.169391,
+        0.079663,
+        0.06173,
+        0.167159
+      ],
+      "median_latency_ms": 0.079663,
+      "max_absolute_error_vs_sdpa": 3.2782554626464844e-07,
+      "matches_sdpa": true,
+      "profile_positive_self_allocations": [
+        {
+          "operator": "aten::bmm",
+          "calls": 2,
+          "self_cpu_memory_bytes": 98304
+        },
+        {
+          "operator": "aten::div",
+          "calls": 1,
+          "self_cpu_memory_bytes": 65532
+        },
+        {
+          "operator": "aten::empty_strided",
+          "calls": 1,
+          "self_cpu_memory_bytes": 4
+        },
+        {
+          "operator": "aten::_softmax",
+          "calls": 1,
+          "self_cpu_memory_bytes": 65536
+        }
+      ]
+    },
+    {
+      "sequence_length": 256,
+      "shape": [
+        1,
+        1,
+        256,
+        64
+      ],
+      "qkv_bytes": 196608,
+      "one_score_matrix_bytes": 262144,
+      "three_live_score_matrices_bytes": 786432,
+      "output_bytes": 65536,
+      "rss_before_first_call_bytes": 253771776,
+      "rss_after_first_call_bytes": 267042816,
+      "hwm_before_first_call_bytes": 253603840,
+      "hwm_after_first_call_bytes": 266903552,
+      "hwm_increase_bytes": 13299712,
+      "latency_samples_ms": [
+        0.238988,
+        0.278912,
+        0.24739,
+        0.311232,
+        0.220101,
+        0.343917,
+        0.221033
+      ],
+      "median_latency_ms": 0.24739,
+      "max_absolute_error_vs_sdpa": 1.1920928955078125e-06,
+      "matches_sdpa": true,
+      "profile_positive_self_allocations": [
+        {
+          "operator": "aten::bmm",
+          "calls": 2,
+          "self_cpu_memory_bytes": 327680
+        },
+        {
+          "operator": "aten::div",
+          "calls": 1,
+          "self_cpu_memory_bytes": 262140
+        },
+        {
+          "operator": "aten::empty_strided",
+          "calls": 1,
+          "self_cpu_memory_bytes": 4
+        },
+        {
+          "operator": "aten::_softmax",
+          "calls": 1,
+          "self_cpu_memory_bytes": 262144
+        }
+      ]
+    },
+    {
+      "sequence_length": 512,
+      "shape": [
+        1,
+        1,
+        512,
+        64
+      ],
+      "qkv_bytes": 393216,
+      "one_score_matrix_bytes": 1048576,
+      "three_live_score_matrices_bytes": 3145728,
+      "output_bytes": 131072,
+      "rss_before_first_call_bytes": 253804544,
+      "rss_after_first_call_bytes": 266833920,
+      "hwm_before_first_call_bytes": 253636608,
+      "hwm_after_first_call_bytes": 269754368,
+      "hwm_increase_bytes": 16117760,
+      "latency_samples_ms": [
+        1.528157,
+        1.82074,
+        1.505282,
+        1.704824,
+        1.47557,
+        1.502973,
+        1.571977
+      ],
+      "median_latency_ms": 1.528157,
+      "max_absolute_error_vs_sdpa": 2.384185791015625e-07,
+      "matches_sdpa": true,
+      "profile_positive_self_allocations": [
+        {
+          "operator": "aten::bmm",
+          "calls": 2,
+          "self_cpu_memory_bytes": 1179648
+        },
+        {
+          "operator": "aten::div",
+          "calls": 1,
+          "self_cpu_memory_bytes": 1048572
+        },
+        {
+          "operator": "aten::empty_strided",
+          "calls": 1,
+          "self_cpu_memory_bytes": 4
+        },
+        {
+          "operator": "aten::_softmax",
+          "calls": 1,
+          "self_cpu_memory_bytes": 1048576
+        }
+      ]
+    },
+    {
+      "sequence_length": 1024,
+      "shape": [
+        1,
+        1,
+        1024,
+        64
+      ],
+      "qkv_bytes": 786432,
+      "one_score_matrix_bytes": 4194304,
+      "three_live_score_matrices_bytes": 12582912,
+      "output_bytes": 262144,
+      "rss_before_first_call_bytes": 254337024,
+      "rss_after_first_call_bytes": 267636736,
+      "hwm_before_first_call_bytes": 254164992,
+      "hwm_after_first_call_bytes": 279982080,
+      "hwm_increase_bytes": 25817088,
+      "latency_samples_ms": [
+        8.644317,
+        7.089406,
+        6.477768,
+        8.105696,
+        7.361482,
+        9.074758,
+        8.325728
+      ],
+      "median_latency_ms": 8.105696,
+      "max_absolute_error_vs_sdpa": 3.2782554626464844e-07,
+      "matches_sdpa": true,
+      "profile_positive_self_allocations": [
+        {
+          "operator": "aten::bmm",
+          "calls": 2,
+          "self_cpu_memory_bytes": 4456448
+        },
+        {
+          "operator": "aten::div",
+          "calls": 1,
+          "self_cpu_memory_bytes": 4194300
+        },
+        {
+          "operator": "aten::empty_strided",
+          "calls": 1,
+          "self_cpu_memory_bytes": 4
+        },
+        {
+          "operator": "aten::_softmax",
+          "calls": 1,
+          "self_cpu_memory_bytes": 4194304
+        }
+      ]
+    },
+    {
+      "sequence_length": 2048,
+      "shape": [
+        1,
+        1,
+        2048,
+        64
+      ],
+      "qkv_bytes": 1572864,
+      "one_score_matrix_bytes": 16777216,
+      "three_live_score_matrices_bytes": 50331648,
+      "output_bytes": 524288,
+      "rss_before_first_call_bytes": 254914560,
+      "rss_after_first_call_bytes": 268800000,
+      "hwm_before_first_call_bytes": 254742528,
+      "hwm_after_first_call_bytes": 318898176,
+      "hwm_increase_bytes": 64155648,
+      "latency_samples_ms": [
+        46.024455,
+        33.691634,
+        32.996354,
+        31.552577,
+        31.098774,
+        33.850892,
+        32.277225
+      ],
+      "median_latency_ms": 32.996354,
+      "max_absolute_error_vs_sdpa": 1.9371509552001953e-07,
+      "matches_sdpa": true,
+      "profile_positive_self_allocations": [
+        {
+          "operator": "aten::bmm",
+          "calls": 2,
+          "self_cpu_memory_bytes": 17301504
+        },
+        {
+          "operator": "aten::div",
+          "calls": 1,
+          "self_cpu_memory_bytes": 16777212
+        },
+        {
+          "operator": "aten::empty_strided",
+          "calls": 1,
+          "self_cpu_memory_bytes": 4
+        },
+        {
+          "operator": "aten::_softmax",
+          "calls": 1,
+          "self_cpu_memory_bytes": 16777216
+        }
+      ]
+    },
+    {
+      "sequence_length": 4096,
+      "shape": [
+        1,
+        1,
+        4096,
+        64
+      ],
+      "qkv_bytes": 3145728,
+      "one_score_matrix_bytes": 67108864,
+      "three_live_score_matrices_bytes": 201326592,
+      "output_bytes": 1048576,
+      "rss_before_first_call_bytes": 256782336,
+      "rss_after_first_call_bytes": 271724544,
+      "hwm_before_first_call_bytes": 256610304,
+      "hwm_after_first_call_bytes": 472809472,
+      "hwm_increase_bytes": 216199168,
+      "latency_samples_ms": [
+        147.603622,
+        147.729219,
+        154.958006,
+        153.486313,
+        153.164193,
+        151.152542,
+        149.244416
+      ],
+      "median_latency_ms": 151.152542,
+      "max_absolute_error_vs_sdpa": 1.341104507446289e-07,
+      "matches_sdpa": true,
+      "profile_positive_self_allocations": [
+        {
+          "operator": "aten::bmm",
+          "calls": 2,
+          "self_cpu_memory_bytes": 68157440
+        },
+        {
+          "operator": "aten::div",
+          "calls": 1,
+          "self_cpu_memory_bytes": 67108860
+        },
+        {
+          "operator": "aten::empty_strided",
+          "calls": 1,
+          "self_cpu_memory_bytes": 4
+        },
+        {
+          "operator": "aten::_softmax",
+          "calls": 1,
+          "self_cpu_memory_bytes": 67108864
+        }
+      ]
+    },
+    {
+      "sequence_length": 8192,
+      "shape": [
+        1,
+        1,
+        8192,
+        64
+      ],
+      "qkv_bytes": 6291456,
+      "one_score_matrix_bytes": 268435456,
+      "three_live_score_matrices_bytes": 805306368,
+      "output_bytes": 2097152,
+      "rss_before_first_call_bytes": 259756032,
+      "rss_after_first_call_bytes": 276725760,
+      "hwm_before_first_call_bytes": 259567616,
+      "hwm_after_first_call_bytes": 1081909248,
+      "hwm_increase_bytes": 822341632,
+      "latency_samples_ms": [
+        620.907988,
+        750.061383,
+        636.438876,
+        606.100575,
+        615.507886,
+        597.81331,
+        601.578028
+      ],
+      "median_latency_ms": 615.507886,
+      "max_absolute_error_vs_sdpa": 9.685754776000977e-08,
+      "matches_sdpa": true,
+      "profile_positive_self_allocations": [
+        {
+          "operator": "aten::bmm",
+          "calls": 2,
+          "self_cpu_memory_bytes": 270532608
+        },
+        {
+          "operator": "aten::div",
+          "calls": 1,
+          "self_cpu_memory_bytes": 268435452
+        },
+        {
+          "operator": "aten::empty_strided",
+          "calls": 1,
+          "self_cpu_memory_bytes": 4
+        },
+        {
+          "operator": "aten::_softmax",
+          "calls": 1,
+          "self_cpu_memory_bytes": 268435456
+        }
+      ]
+    }
+  ]
+}

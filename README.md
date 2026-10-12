@@ -4,7 +4,7 @@ Build FlashAttention forward-pass kernels from scratch in **Triton** and **CUDA 
 
 **Small theory → small commit → verify → next commit.**
 
-Progress: commits **00 and 01 complete**. Next: **02 — expose the memory bottleneck**. Follow the authoritative checklist in [AGENTS.md](AGENTS.md).
+Progress: commits **00–02 complete**. Next: **03 — online softmax on CPU**. Follow the authoritative checklist in [AGENTS.md](AGENTS.md).
 
 ## Commit 00: reproducible CPU environment
 
@@ -58,6 +58,18 @@ from tileforge.naive import naive_attention
 
 output = naive_attention(q, k, v)
 ```
+
+## Commit 02: memory bottleneck
+
+Run the naive CPU forward pass at N=128–8192 with fixed B=1, H=1, D=64:
+
+```bash
+uv run --locked python -m tileforge.memory_baseline --output /tmp/naive-cpu-baseline.json
+```
+
+Use a new output filename for each run. This Linux-only command measures each size in a fresh process, checks its output against SDPA, measures first-call peak process RSS, and records the median of seven forward timings after two warmups. A separate profiler call attributes CPU allocations to operators. Defaults use FP32 and one compute thread; `--lengths`, `--head-dim`, `--threads`, `--warmup`, `--repeats`, and `--seed` are configurable.
+
+The [2026-10-12 observations](observations/2026-10-12/README.md) include the actual results and raw JSON. At N=8192, three full score-sized tensors occupy 768 MiB versus 6 MiB of Q/K/V inputs; measured process peak RSS reaches 1031.79 MiB. These are CPU measurements, not GPU memory or speedup claims.
 
 ## Milestones
 

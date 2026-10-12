@@ -32,7 +32,7 @@ The final architecture takes Q, K, and V tensors through either a Triton kernel 
 
 - [x] **00 — Initialize repository.** Create the README, Python environment, and dependency configuration. Check GPU, PyTorch, and CUDA availability. Deliver a reproducible environment.
 - [x] **01 — Implement naive attention.** Write PyTorch QKᵀ → scaling → softmax → V. Start with B=1, H=1, N=4, D=4. Manually verify that the output matches SDPA.
-- [ ] **02 — Expose the memory bottleneck.** Measure the N × N attention matrix and runtime memory for increasing N. Record baseline measurements.
+- [x] **02 — Expose the memory bottleneck.** Measure the N × N attention matrix and runtime memory for increasing N. Record baseline measurements.
 - [ ] **03 — Implement online softmax on CPU.** Process one query against K in small chunks; maintain the running maximum, sum, and numerator accumulator. Verify against full softmax attention.
 - [ ] **04 — Build CPU tiled attention.** Handle multiple Q rows, K/V tiles, and head dimensions. Never allocate the full attention matrix. Deliver a correct tiled reference.
 - [ ] **05 — Learn Triton GPU execution.** Implement a small GPU softmax kernel. Practice program IDs, `tl.load`, `tl.store`, masks, and reductions. Deliver a working Triton kernel.
@@ -118,6 +118,14 @@ The user's AMD integrated-GPU laptop can handle the CPU milestones. The Triton G
   - `uv run --locked python -m tileforge.naive --seq-len 9 --head-dim 8` — B=1, H=1, N=9, D=8, seed 0; maximum absolute error `1.19209290e-07`.
 - All three commands exited 0 and matched SDPA with `rtol=1e-5, atol=1e-6` on CPU FP32. No unit tests were run, written, or modified. GPU execution was not evaluated.
 
-### Next: 02 — Expose the memory bottleneck
+### Completed: 02 — Expose the memory bottleneck
 
-Measure the N × N attention matrix and runtime memory for increasing N, and record baseline measurements. Update this checklist and progress record after successful manual verification.
+- Added `tileforge/memory_baseline.py`, running the existing naive implementation in a fresh Linux subprocess per N, with first-call process RSS measurements, warmed-up timings, SDPA comparisons, and separate operator allocation profiling.
+- Ran `UV_CACHE_DIR=/workspace/.cache/uv uv run --locked python -m tileforge.memory_baseline --output observations/2026-10-12/naive-cpu-baseline.json` from `/workspace/tileforge`.
+- Exit 0; all seven sizes (128, 256, 512, 1024, 2048, 4096, 8192) matched SDPA. CPU FP32, B=1, H=1, D=64, one compute thread, two warmups, seven timing samples per shape. No unit tests were created, modified, or run.
+- At N=8192: 256 MiB per score matrix, 768 MiB across three live matrices, 1031.79 MiB measured process peak RSS, 784.25 MiB first-call high-water increase, 615.508 ms median forward latency.
+- Saved raw results and methodology/bottleneck observations under `observations/2026-10-12/`. RSS includes process overhead; these are CPU observations, not GPU measurements or proof of a bandwidth-bound kernel.
+
+### Next: 03 — Implement online softmax on CPU
+
+Process one query against K in small chunks, maintaining the running maximum, normalization sum, and weighted numerator accumulator. Run it directly and compare against full softmax attention. Update this checklist and progress record after successful manual verification.
