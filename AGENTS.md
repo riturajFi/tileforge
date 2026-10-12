@@ -25,6 +25,7 @@ The final architecture takes Q, K, and V tensors through either a Triton kernel 
 - Run the implementation and inspect numerical results, errors, measurements, and exit statuses. Do not claim verification for commands that were not run.
 - Resolve failures before marking a milestone complete. If hardware, credentials, or access block verification, leave it unchecked and record the blocker. Do not advance past it.
 - After successful manual verification, update this file's checklist and progress record with what was completed, the commands run, their results, and the next milestone. Include that update in the milestone commit. A commit hash can be recorded afterward when useful; do not invent a hash.
+- Commit and push all completed code changes and corresponding documentation, observations, and roadmap updates to `origin/main` before finishing the task. This is standing authorization to push; do not wait for a separate push request. Verify that the remote branch contains the completed commit and report any push blocker. Keep secrets, local environments, and temporary artifacts out of commits, and never force-push over remote work.
 - Stop after the requested milestone and report the next step. Proceed to the next milestone when the user requests it.
 - Keep this file as the authoritative progress checklist and keep any corresponding README status consistent. Do not optimize an incorrect kernel.
 
