@@ -4,7 +4,7 @@ Build FlashAttention forward-pass kernels from scratch in **Triton** and **CUDA 
 
 **Small theory → small commit → verify → next commit.**
 
-Progress: commits **00–08 complete**. Next: **09 — optimize the Triton kernel (requires NVIDIA GPU access)**. Follow the authoritative checklist in [AGENTS.md](AGENTS.md).
+Progress: commits **00–09 complete**. Next: **10 — build the CUDA C++ foundation (requires an NVIDIA GPU and `nvcc`)**. Follow the authoritative checklist in [AGENTS.md](AGENTS.md).
 
 ## Commit 00: reproducible CPU environment
 
@@ -167,6 +167,18 @@ python3 -m tileforge.triton_attention --batch 1 --heads 3 --seq-len 33 --head-di
 The CLI builds an explicit FP32 attention reference, compares PyTorch SDPA using the requested dtype and causal mode, and uses dtype-specific tolerances. See [commit 08 observations](observations/2026-10-12/triton-attention-features.md) for the exact A100 commands and results. All eight checks passed, including 1×1, odd N/D tails, multiple batches/heads, causal masking, uniform weights, rising maxima, and the preserved 2D API.
 
 The supported head dimension is at most 128. Inputs must be contiguous and Q/K/V must share their shape, dtype, and CUDA device. This remains forward-only self-attention without dropout; performance tuning starts in commit 09.
+
+## Commit 09: tune the Triton kernel
+
+[`triton_tuning`](tileforge/triton_tuning.py) measures the correct fused kernel while changing one launch choice at a time. Every candidate must first match PyTorch SDPA. Each timing is the median of 30 CUDA-event samples after 10 warmups for FP16 `B=1, H=8, D=64` at `N=128, 256, 512, 1024`.
+
+```bash
+python3 -m tileforge.triton_tuning --warmups 10 --repetitions 30
+```
+
+The A100 sweep selected 64×64 query/key tiles, four warps, and two pipeline stages. During the tile sweep, the geometric mean fell from `0.126402 ms` for the old 16×16 configuration to `0.113152 ms`, a 10.5% reduction. Four warps then beat two and eight; two stages narrowly beat three and four. The selected tuple `(64, 64, 4, 2)` is now the default in [`triton_attention`](tileforge/triton_attention.py).
+
+See [commit 09 observations](observations/2026-10-12/triton-attention-tuning.md) for every measurement and the post-tuning correctness checks. This is workload- and A100-specific kernel tuning, not an end-to-end or SDPA speedup claim; the full comparison remains milestone 13.
 
 ## Milestones
 

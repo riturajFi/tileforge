@@ -1,0 +1,137 @@
+Milestone 09 manual GPU verification
+Timestamp: 2026-10-12T16:45:28+00:00 (2026-10-12T22:15:28+05:30)
+Working directory: /workspace/tileforge
+
+$ python3 scripts/check_environment.py --require-cuda
+Python: 3.12.3
+Platform: Linux x86_64
+PyTorch: 2.8.0+cu128
+PyTorch CUDA build: 12.8
+CUDA usable by PyTorch: True
+Triton installed version: 3.4.0 (kernel execution not tested)
+NVIDIA driver query (exit 0): NVIDIA A100 80GB PCIe, 580.159.04
+CUDA compiler: nvcc unavailable (needed at milestone 10)
+cuda:0: NVIDIA A100 80GB PCIe, capability (8, 0)
+PASS: cpu tensor allocation, matrix multiplication, and SDPA smoke check
+PASS: cuda:0 tensor allocation, matrix multiplication, and SDPA smoke check
+PASS: environment check (optional missing GPU capabilities reported above)
+Exit: 0
+
+$ python3 -m tileforge.triton_tuning --warmups 10 --repetitions 30
+GPU: NVIDIA A100 80GB PCIe
+workload: B=1 H=8 D=64 dtype=float16 causal=False; warmups=10; repetitions=30
+
+tiles
+config=(16, 16, 4, 2) N=128 median_ms=0.112000 max_error=4.88281250e-04
+config=(16, 16, 4, 2) N=256 median_ms=0.111264 max_error=2.44140625e-04
+config=(16, 16, 4, 2) N=512 median_ms=0.118704 max_error=2.44140625e-04
+config=(16, 16, 4, 2) N=1024 median_ms=0.172576 max_error=4.88281250e-04
+config=(16, 16, 4, 2) geometric_mean_ms=0.126402
+config=(16, 32, 4, 2) N=128 median_ms=0.112016 max_error=4.88281250e-04
+config=(16, 32, 4, 2) N=256 median_ms=0.112432 max_error=2.44140625e-04
+config=(16, 32, 4, 2) N=512 median_ms=0.112560 max_error=2.44140625e-04
+config=(16, 32, 4, 2) N=1024 median_ms=0.143328 max_error=4.88281250e-04
+config=(16, 32, 4, 2) geometric_mean_ms=0.119391
+config=(32, 16, 4, 2) N=128 median_ms=0.110736 max_error=4.88281250e-04
+config=(32, 16, 4, 2) N=256 median_ms=0.112016 max_error=2.44140625e-04
+config=(32, 16, 4, 2) N=512 median_ms=0.131584 max_error=2.44140625e-04
+config=(32, 16, 4, 2) N=1024 median_ms=0.183680 max_error=4.88281250e-04
+config=(32, 16, 4, 2) geometric_mean_ms=0.131586
+config=(32, 32, 4, 2) N=128 median_ms=0.112256 max_error=4.88281250e-04
+config=(32, 32, 4, 2) N=256 median_ms=0.111488 max_error=2.44140625e-04
+config=(32, 32, 4, 2) N=512 median_ms=0.113216 max_error=2.44140625e-04
+config=(32, 32, 4, 2) N=1024 median_ms=0.141856 max_error=4.88281250e-04
+config=(32, 32, 4, 2) geometric_mean_ms=0.119069
+config=(64, 32, 4, 2) N=128 median_ms=0.116048 max_error=4.88281250e-04
+config=(64, 32, 4, 2) N=256 median_ms=0.114720 max_error=2.44140625e-04
+config=(64, 32, 4, 2) N=512 median_ms=0.112704 max_error=2.44140625e-04
+config=(64, 32, 4, 2) N=1024 median_ms=0.120720 max_error=4.88281250e-04
+config=(64, 32, 4, 2) geometric_mean_ms=0.116011
+config=(64, 64, 4, 2) N=128 median_ms=0.110752 max_error=2.44140625e-04
+config=(64, 64, 4, 2) N=256 median_ms=0.109920 max_error=2.44140625e-04
+config=(64, 64, 4, 2) N=512 median_ms=0.115840 max_error=2.44140625e-04
+config=(64, 64, 4, 2) N=1024 median_ms=0.116240 max_error=4.88281250e-04
+config=(64, 64, 4, 2) geometric_mean_ms=0.113152
+selected_tiles=(64, 64, 4, 2) geometric_mean_ms=0.113152
+
+warps
+config=(64, 64, 2, 2) N=128 median_ms=0.110064 max_error=2.44140625e-04
+config=(64, 64, 2, 2) N=256 median_ms=0.112944 max_error=2.44140625e-04
+config=(64, 64, 2, 2) N=512 median_ms=0.136624 max_error=2.44140625e-04
+config=(64, 64, 2, 2) N=1024 median_ms=0.150784 max_error=4.88281250e-04
+config=(64, 64, 2, 2) geometric_mean_ms=0.126502
+config=(64, 64, 4, 2) N=128 median_ms=0.110352 max_error=2.44140625e-04
+config=(64, 64, 4, 2) N=256 median_ms=0.110816 max_error=2.44140625e-04
+config=(64, 64, 4, 2) N=512 median_ms=0.109952 max_error=2.44140625e-04
+config=(64, 64, 4, 2) N=1024 median_ms=0.114080 max_error=4.88281250e-04
+config=(64, 64, 4, 2) geometric_mean_ms=0.111288
+config=(64, 64, 8, 2) N=128 median_ms=0.117392 max_error=2.44140625e-04
+config=(64, 64, 8, 2) N=256 median_ms=0.110960 max_error=2.44140625e-04
+config=(64, 64, 8, 2) N=512 median_ms=0.116704 max_error=2.44140625e-04
+config=(64, 64, 8, 2) N=1024 median_ms=0.146576 max_error=4.88281250e-04
+config=(64, 64, 8, 2) geometric_mean_ms=0.122177
+selected_warps=(64, 64, 4, 2) geometric_mean_ms=0.111288
+
+stages
+config=(64, 64, 4, 2) N=128 median_ms=0.111728 max_error=2.44140625e-04
+config=(64, 64, 4, 2) N=256 median_ms=0.110992 max_error=2.44140625e-04
+config=(64, 64, 4, 2) N=512 median_ms=0.114688 max_error=2.44140625e-04
+config=(64, 64, 4, 2) N=1024 median_ms=0.114608 max_error=4.88281250e-04
+config=(64, 64, 4, 2) geometric_mean_ms=0.112992
+config=(64, 64, 4, 3) N=128 median_ms=0.117472 max_error=2.44140625e-04
+config=(64, 64, 4, 3) N=256 median_ms=0.114784 max_error=2.44140625e-04
+config=(64, 64, 4, 3) N=512 median_ms=0.112640 max_error=2.44140625e-04
+config=(64, 64, 4, 3) N=1024 median_ms=0.114688 max_error=4.88281250e-04
+config=(64, 64, 4, 3) geometric_mean_ms=0.114883
+config=(64, 64, 4, 4) N=128 median_ms=0.113472 max_error=2.44140625e-04
+config=(64, 64, 4, 4) N=256 median_ms=0.111056 max_error=2.44140625e-04
+config=(64, 64, 4, 4) N=512 median_ms=0.114144 max_error=2.44140625e-04
+config=(64, 64, 4, 4) N=1024 median_ms=0.114048 max_error=4.88281250e-04
+config=(64, 64, 4, 4) geometric_mean_ms=0.113173
+selected_stages=(64, 64, 4, 2) geometric_mean_ms=0.112992
+
+TUNED_CONFIG=(64, 64, 4, 2)
+PASS: every measured configuration matched PyTorch SDPA.
+Exit: 0
+
+$ python3 -m tileforge.triton_attention --batch 2 --heads 3 --seq-len 37 --head-dim 24 --causal --seed 7
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; shape=(2, 3, 37, 24); dtype=float32; causal=True; scenario=random; seed=7
+PASS vs FP32 reference: maximum absolute error=4.76837158e-07
+PASS vs SDPA: maximum absolute error=1.25169754e-06
+PASS: finite output and reference agreement (rtol=0.0001, atol=1e-05)
+Exit: 0
+
+$ python3 -m tileforge.triton_attention --batch 2 --heads 2 --seq-len 67 --head-dim 48 --dtype float16 --seed 11
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; shape=(2, 2, 67, 48); dtype=float16; causal=False; scenario=random; seed=11
+PASS vs FP32 reference: maximum absolute error=4.01735306e-04
+PASS vs SDPA: maximum absolute error=4.88281250e-04
+PASS: finite output and reference agreement (rtol=0.02, atol=0.002)
+Exit: 0
+
+$ python3 -m tileforge.triton_attention --batch 1 --heads 3 --seq-len 33 --head-dim 80 --dtype bfloat16 --causal --seed 17
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; shape=(1, 3, 33, 80); dtype=bfloat16; causal=True; scenario=random; seed=17
+PASS vs FP32 reference: maximum absolute error=5.88369370e-03
+PASS vs SDPA: maximum absolute error=0.00000000e+00
+PASS: finite output and reference agreement (rtol=0.03, atol=0.01)
+Exit: 0
+
+$ python3 -m tileforge.triton_attention --batch 2 --heads 2 --seq-len 17 --head-dim 23 --dtype float16 --causal --scenario rising --seed 19
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; shape=(2, 2, 17, 23); dtype=float16; causal=True; scenario=rising; seed=19
+PASS vs FP32 reference: maximum absolute error=9.54389572e-04
+PASS vs SDPA: maximum absolute error=4.88281250e-04
+PASS: finite output and reference agreement (rtol=0.02, atol=0.002)
+Exit: 0
+
+$ python3 -m tileforge.triton_attention --seq-len 1 --head-dim 1 --causal --seed 29
+GPU: NVIDIA A100 80GB PCIe
+PyTorch 2.8.0+cu128; Triton 3.4.0; shape=(1, 1, 1, 1); dtype=float32; causal=True; scenario=random; seed=29
+PASS vs FP32 reference: maximum absolute error=0.00000000e+00
+PASS vs SDPA: maximum absolute error=0.00000000e+00
+PASS: finite output and reference agreement (rtol=0.0001, atol=1e-05)
+Exit: 0
+
+No unit tests were run, written, or modified.

@@ -11,6 +11,9 @@ import triton.language as tl
 from tileforge.naive import positive_int
 
 
+_TUNED_CONFIG = (64, 64, 4, 2)
+
+
 @triton.jit
 def _attention_kernel(q_ptr, k_ptr, v_ptr, output_ptr,
                       q_head_stride, k_head_stride, v_head_stride, output_head_stride,
@@ -73,14 +76,14 @@ def _attention_kernel(q_ptr, k_ptr, v_ptr, output_ptr,
 
 
 @torch.no_grad()
-def triton_attention(
+def _triton_attention_with_config(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
     *,
     causal: bool = False,
+    config: tuple[int, int, int, int],
 ) -> torch.Tensor:
-    """Compute forward-only CUDA attention for `(N, D)` or `(B, H, N, D)`."""
     if q.ndim not in (2, 4) or q.shape != k.shape or q.shape != v.shape or 0 in q.shape:
         raise ValueError("Q, K, and V must share a nonempty (N, D) or (B, H, N, D) shape.")
     if any(t.device != q.device or t.device.type != "cuda" or t.dtype != q.dtype
@@ -99,7 +102,7 @@ def triton_attention(
     original_shape = q.shape
     q_flat, k_flat, v_flat = [t.reshape(-1, sequence_length, head_dim) for t in (q, k, v)]
     output = torch.empty_like(q_flat)
-    block_m = block_n = 16
+    block_m, block_n, num_warps, num_stages = config
     block_d = max(16, triton.next_power_of_2(head_dim))
     grid = (triton.cdiv(sequence_length, block_m), q_flat.shape[0])
     _attention_kernel[grid](
@@ -109,8 +112,20 @@ def triton_attention(
         1.0 / math.sqrt(head_dim),
         SEQUENCE_LENGTH=sequence_length, HEAD_DIM=head_dim,
         BLOCK_M=block_m, BLOCK_N=block_n, BLOCK_D=block_d, CAUSAL=causal,
+        num_warps=num_warps, num_stages=num_stages,
     )
     return output.reshape(original_shape)
+
+
+def triton_attention(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    *,
+    causal: bool = False,
+) -> torch.Tensor:
+    """Compute forward-only CUDA attention for `(N, D)` or `(B, H, N, D)`."""
+    return _triton_attention_with_config(q, k, v, causal=causal, config=_TUNED_CONFIG)
 
 
 def main() -> int:

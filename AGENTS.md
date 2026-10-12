@@ -42,7 +42,7 @@ The final architecture takes Q, K, and V tensors through either a Triton kernel 
 - [x] **06 — Implement tiled QKᵀ in Triton.** Load a Q tile and K tile, perform `tl.dot`, and validate the resulting local scores. Deliver correct tile products.
 - [x] **07 — Implement fused Triton attention.** Combine QKᵀ, online softmax, and weighted V accumulation in a single forward kernel. Deliver the first real FlashAttention engine.
 - [x] **08 — Add correctness features.** Support causal masking, non-multiple tile sizes, multiple batches/heads, FP16, and BF16. Verify correctness on supported shapes.
-- [ ] **09 — Optimize the Triton kernel.** Experiment with tile sizes, warp counts, and pipeline stages; record performance changes. Deliver a tuned Triton engine.
+- [x] **09 — Optimize the Triton kernel.** Experiment with tile sizes, warp counts, and pipeline stages; record performance changes. Deliver a tuned Triton engine.
 - [ ] **10 — Build the CUDA C++ foundation.** Create a PyTorch CUDA extension. Learn thread/block mapping, global memory, shared memory, and synchronization. Deliver a callable CUDA kernel.
 - [ ] **11 — Implement simple CUDA attention.** Write a correct basic CUDA attention implementation before fusion and tiling. Establish the CUDA numerical baseline.
 - [ ] **12 — Implement fused CUDA attention.** Use shared-memory Q/K/V tiles, running softmax statistics, and FP32 accumulators. Optimize only after correctness. Deliver a CUDA FlashAttention forward kernel.
@@ -88,7 +88,7 @@ Keep batch size, number of heads, head dimension, dtype, and causal mode identic
 
 ## Hardware and references
 
-The user's AMD integrated-GPU laptop can handle the CPU milestones. The Triton GPU kernels, NVIDIA CUDA implementation, and GPU benchmarks require access to a compatible NVIDIA GPU, locally or in the cloud. Milestones 05–06 and 08 were verified on a RunPod NVIDIA A100 80 GB, and milestone 07 on a RunPod NVIDIA RTX 2000 Ada 16 GB, with CUDA-enabled PyTorch and Triton. The local locked environment remains CPU-only, and the verified RunPod images have no `nvcc`; a CUDA compiler is required at milestone 10.
+The user's AMD integrated-GPU laptop can handle the CPU milestones. The Triton GPU kernels, NVIDIA CUDA implementation, and GPU benchmarks require access to a compatible NVIDIA GPU, locally or in the cloud. Milestones 05–06 and 08–09 were verified on a RunPod NVIDIA A100 80 GB, and milestone 07 on a RunPod NVIDIA RTX 2000 Ada 16 GB, with CUDA-enabled PyTorch and Triton. The local locked environment remains CPU-only, and the verified RunPod images have no `nvcc`; a CUDA compiler is required at milestone 10.
 
 - [Triton — Fused Softmax](https://triton-lang.org/main/getting-started/tutorials/02-fused-softmax.html)
 - [Triton — Matrix Multiplication](https://triton-lang.org/main/getting-started/tutorials/03-matrix-multiplication.html)
@@ -175,6 +175,14 @@ The user's AMD integrated-GPU laptop can handle the CPU milestones. The Triton G
 - Ran `python3 scripts/check_environment.py --require-cuda` and eight direct kernel checks covering 1×1, preserved 2D input, B=2/H=3, odd N/D tails, causal masking, FP16, BF16, uniform weights, and rising maxima. Every command exited 0 and matched an explicit FP32 reference plus SDPA within dtype-specific tolerances. Largest errors against FP32 reference were `5.96046448e-7` for FP32, `9.54389572e-4` for FP16, and `5.88369370e-3` for BF16.
 - Saved exact commands, outputs, and exit codes in `observations/2026-10-12/triton-attention-features-runs.txt`, with interpretation and limits in `triton-attention-features.md`. No unit tests were written, changed, or run. No latency, measured-memory, or speedup claims were made.
 
-### Next: 09 — Optimize the Triton kernel (requires GPU access)
+### Completed: 09 — Optimize the Triton kernel
 
-Measure the correct kernel first, then experiment with tile sizes, warp counts, and pipeline stages one variable at a time. Record each performance change without altering correctness scope.
+- Added `tileforge/triton_tuning.py`, a correctness-gated CUDA-event benchmark that changes tiles, warp count, and pipeline stages one variable at a time. It uses FP16 B=1, H=8, D=64 at N=128, 256, 512, and 1024, with 10 warmups and 30 measured repetitions per shape.
+- Verified actual GPU execution on the same RunPod NVIDIA A100 80 GB (capability 8.0), driver 580.159.04, Python 3.12.3, PyTorch 2.8.0+cu128, and Triton 3.4.0. Every measured configuration matched SDPA; the largest absolute error was `4.88281250e-4`.
+- The tile sweep selected 64×64: its geometric-mean latency was `0.113152 ms`, down 10.5% from `0.126402 ms` for the previous 16×16 configuration. With 64×64 tiles, four warps beat two and eight; two stages narrowly beat three and four. The final default is `(BLOCK_M=64, BLOCK_N=64, num_warps=4, num_stages=2)`.
+- Re-ran the tuned public kernel on FP32, FP16, and BF16 cases covering causal masking, non-multiple N/D, multiple batches/heads, rising maxima, and N=D=1. Every command exited 0 and remained within the milestone 08 dtype-specific tolerances.
+- Saved exact commands, all latency/error measurements, and interpretation in `observations/2026-10-12/triton-attention-tuning-runs.txt` and `triton-attention-tuning.md`. No unit tests were written, changed, or run. GPU memory and comparisons with SDPA latency remain milestone 13.
+
+### Next: 10 — Build the CUDA C++ foundation (requires GPU access and `nvcc`)
+
+Create a minimal PyTorch CUDA extension and verify one callable CUDA kernel before implementing attention. The RunPod image used for milestones 08–09 has no `nvcc`, so milestone 10 needs an image with the CUDA toolkit compiler.
